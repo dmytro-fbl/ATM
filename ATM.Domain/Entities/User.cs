@@ -13,7 +13,7 @@ namespace ATM.Domain.Entities
 
         public string FirstName { get; set; }
         public string LastName { get; set; }
-        public string? phoneNumber { get; set; } = string.Empty;
+        public string? PhoneNumber { get; set; } = string.Empty;
 
         public virtual ICollection<Card> Cards { get; set; } = new List<Card>();
     }
