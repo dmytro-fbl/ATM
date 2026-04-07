@@ -27,8 +27,7 @@ namespace ATM.Infrastructure.Data
         {
             if (!optionsBuilder.IsConfigured)
             {
-                optionsBuilder.UseSqlServer("Server=localhost;Database=ATM_System;" +
-                    "Trusted_connection=True;TrustServerCertificate=True");
+                optionsBuilder.UseSqlServer("Server=localhost;Database=ATM_System;Trusted_connection=True;TrustServerCertificate=True");
             }
         }
 
@@ -38,8 +37,8 @@ namespace ATM.Infrastructure.Data
 
             modelBuilder.Entity<User>().ToTable("Users");
             modelBuilder.Entity<Card>().ToTable("Cards");
-            modelBuilder.Entity<Account>().ToTable("Accounts");
-            modelBuilder.Entity<Transaction>().ToTable("Transactions");
+            modelBuilder.Entity<Account>().ToTable("Accounts").Property(x => x.Balance).HasColumnType("decimal(18,2)");
+            modelBuilder.Entity<Transaction>().ToTable("Transactions").Property(x => x.Amount).HasColumnType("decimal(18,2)");
             modelBuilder.Entity<AtmCassette>().ToTable("ATMCassettes");
             modelBuilder.Entity<AtmOperationLog>().ToTable("ATMOperationLogs");
         }
