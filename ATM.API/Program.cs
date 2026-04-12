@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using ATM.Infrastructure.Data;
 using ATM.Infrastructure.Repositories;
+using ATM.Infrastructure.Services;
 using ATM.Domain.Interfaces;
+using ATM.Domain.Interfaces.Services;
 
 namespace ATM.API
 {
@@ -13,6 +15,10 @@ namespace ATM.API
 
             builder.Services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+            builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
+
+            builder.Services.AddScoped<IAtmService, AtmService>();
 
             builder.Services.AddScoped<IAccountRepository, AccountRepository>();
             builder.Services.AddScoped<ICardRepository, CardRepository>();
