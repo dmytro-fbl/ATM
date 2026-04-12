@@ -10,6 +10,7 @@ namespace ATM.Domain.Interfaces
     public interface ICardRepository
     {
         public Task<Card?> GetByCardByNumberAsync(string cardNumber);
+        public Task<Card?> GetByCardByIdAsync(Guid cardId);
         public Task UpdateAsync(Card card);
     }
 }

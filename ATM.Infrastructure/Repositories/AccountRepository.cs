@@ -23,14 +23,14 @@ namespace ATM.Infrastructure.Repositories
         public async Task<Account?> GetAccountByIdAsync(Guid accountId)
         {
             return await _context.Accounts
-                .Include(a => a.Card)
+                .Include(a => a.Cards)
                 .Include(a => a.User)
                 .FirstOrDefaultAsync(a => a.Id == accountId);
         }
         public async Task<IEnumerable<Account>> GetAccountsByCardIdAsync(Guid cardId)
         {
             return await _context.Accounts
-                .Where(a => a.CardId == cardId)
+                .Where(a => a.Cards.Any(c => c.Id == cardId))
                 .ToListAsync();
         }
         public async Task UpdateAsync(Account account)
