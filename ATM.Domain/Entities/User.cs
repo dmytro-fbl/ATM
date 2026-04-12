@@ -15,6 +15,6 @@ namespace ATM.Domain.Entities
         public string LastName { get; set; }
         public string? PhoneNumber { get; set; } = string.Empty;
 
-        public virtual ICollection<Card> Cards { get; set; } = new List<Card>();
+        public virtual ICollection<Account> Accounts { get; set; } = new List<Account>();
     }
 }

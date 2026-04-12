@@ -18,10 +18,18 @@ namespace ATM.Infrastructure.Repositories
         {
             _context = context;
         }
+
+        public async Task<Card?> GetByCardByIdAsync(Guid cardId)
+        {
+            return await _context.Cards
+                .Include(c => c.Account)
+                .FirstOrDefaultAsync(c => c.Id == cardId);
+        }
+
         public async Task<Card?> GetByCardByNumberAsync(string cardNumber)
         {
             return await _context.Cards
-                .Include(c => c.UserId)
+                .Include(c => c.Account)
                 .FirstOrDefaultAsync(c => c.CardNumber == cardNumber);
         }
         public async Task UpdateAsync(Card card)
