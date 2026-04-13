@@ -29,5 +29,24 @@ namespace ATM.API.Controllers
                 return Unauthorized(new { message = "невірний номер картки або ПІН-код" });
             }
         }
+
+        [HttpPost("withdraw")]
+        public async Task<IActionResult> Withdraw([FromBody] WithdrawRequest request)
+        {
+            bool isSuccess = await _atmService.WithdrawCashAsync(request.CardId, request.Amount);
+
+            if (isSuccess)
+            {
+                return Ok(new { message = "Гроші видано" });
+            }
+            else
+            {
+                return BadRequest(new { message = "Помилка операції" });
+            }
+        }
+
+        
+
+
     }
 }
