@@ -46,7 +46,7 @@ namespace ATM.Infrastructure.Services
             return _passwordHasher.VerifyPassword(pin, card.PinHash);
         }
 
-        public async Task DepositCashAsync(Guid cardId, Dictionary<int, int> banknotes)
+        public async Task<bool> DepositCashAsync(Guid cardId, Dictionary<int, int> banknotes)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
 
@@ -88,6 +88,7 @@ namespace ATM.Infrastructure.Services
                 await _accountRepo.UpdateAsync(account);
 
                 await transaction.CommitAsync();
+                return true;
             }
             catch (Exception)
             {
