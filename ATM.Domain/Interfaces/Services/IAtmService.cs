@@ -14,6 +14,6 @@ namespace ATM.Domain.Interfaces.Services
 
         Task<bool> WithdrawCashAsync(Guid cardId, decimal amount);
 
-        Task DepositCashAsync(Guid cardId, Dictionary<int, int> banknotes);
+        Task<bool> DepositCashAsync(Guid cardId, Dictionary<int, int> banknotes);
     }
 }

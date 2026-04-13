@@ -52,6 +52,19 @@ namespace ATM.API.Controllers
             return Ok(new { balance = balance, currency = "UAH"});
         }
 
+        [HttpPost("deposit")]
+        public async Task<IActionResult> Deposit([FromBody] DepositRequest request)
+        {
+            bool isSuccess = await _atmService.DepositCashAsync(request.CardId, request.Banknotes);
 
+            if (isSuccess)
+            {
+                return Ok(new { message = "Успішне поповнення" });
+            }
+            else
+            {
+                return BadRequest(new { message = "Помилка операції" });
+            }
+        }
     }
 }
