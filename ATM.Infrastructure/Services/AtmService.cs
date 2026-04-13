@@ -6,18 +6,36 @@ using System.Threading.Tasks;
 using ATM.Domain.Entities;
 using ATM.Domain.Interfaces;
 using ATM.Domain.Interfaces.Services;
+using ATM.Infrastructure.Data;
 using ATM.Infrastructure.Repositories;
 
 namespace ATM.Infrastructure.Services
 {
     public class AtmService : IAtmService
     {
-        private CardRepository _cardRepo;
-        private AccountRepository _accountRepo;
-        private TransactionRepository _transactionRepo;
-        private AtmCassetteRepository _cassetteRepo;
-        private AtmOperationLogRepository _operationLogRepo;
+        private readonly AppDbContext _context;
+        private ICardRepository _cardRepo;
+        private IAccountRepository _accountRepo;
+        private ITransactionRepository _transactionRepo;
+        private IAtmCassetteRepository _cassetteRepo;
+        private IAtmOperationLogRepository _operationLogRepo;
         private readonly IPasswordHasher _passwordHasher;
+
+        public AtmService(AppDbContext context, ICardRepository cardRepo, IAccountRepository accountRepo,
+            ITransactionRepository transactionRepo, IAtmCassetteRepository cassetteRepo,
+            IAtmOperationLogRepository operationLogRepo, IPasswordHasher passwordHasher
+            )
+        {
+            _context = context;
+            _cardRepo = cardRepo;
+            _accountRepo = accountRepo;
+            _transactionRepo = transactionRepo;
+            _cassetteRepo = cassetteRepo;
+            _operationLogRepo = operationLogRepo;
+            _passwordHasher = passwordHasher;
+        }
+
+       
 
         public async Task<bool> AuthenticateAsync(string cardNumber, string pin)
         {
@@ -30,102 +48,129 @@ namespace ATM.Infrastructure.Services
 
         public async Task DepositCashAsync(Guid cardId, Dictionary<int, int> banknotes)
         {
-            decimal totalDepositAmount = 0;
-            foreach (var note in banknotes)
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
             {
-                if (note.Key <= 0 || note.Value <= 0)
-                    throw new Exception("Incorrect banknote data");
-
-                totalDepositAmount += (note.Key * note.Value);
-            }
-            if (totalDepositAmount == 0)
-                throw new Exception("The top-up amount must be greater than zero.");
-
-            var card = await GetCard(cardId);
-            var account = await GetAccount(card.AccountId);
-
-            var cassettes = await _cassetteRepo.GetAllAsync();
-
-            foreach (var note in banknotes)
-            {
-                var denomination = note.Key;
-                var countToAdd = note.Value;
-
-                var cassette = cassettes.FirstOrDefault(c => c.Denomination == denomination);
-
-                if (cassette == null)
+                decimal totalDepositAmount = 0;
+                foreach (var note in banknotes)
                 {
-                    throw new Exception($"The ATM does not accept banknotes of the same denomination {denomination}");
+                    if (note.Key <= 0 || note.Value <= 0)
+                        throw new Exception("Incorrect banknote data");
+
+                    totalDepositAmount += (note.Key * note.Value);
+                }
+                if (totalDepositAmount == 0)
+                    throw new Exception("The top-up amount must be greater than zero.");
+
+                var card = await GetCardAsync(cardId);
+                var account = await GetAccountAsync(card.AccountId);
+
+                var cassettes = await _cassetteRepo.GetAllAsync();
+
+                foreach (var note in banknotes)
+                {
+                    var denomination = note.Key;
+                    var countToAdd = note.Value;
+
+                    var cassette = cassettes.FirstOrDefault(c => c.Denomination == denomination);
+
+                    if (cassette == null)
+                    {
+                        throw new Exception($"The ATM does not accept banknotes of the same denomination {denomination}");
+                    }
+
+                    cassette.Count += countToAdd;
+                    await _cassetteRepo.UpdateAsync(cassette);
                 }
 
-                cassette.Count += countToAdd;
-                await _cassetteRepo.UpdateAsync(cassette);
+                account.Balance += totalDepositAmount;
+                await _accountRepo.UpdateAsync(account);
+
+                await transaction.CommitAsync();
             }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+
+            
         }
 
         public async Task<decimal> GetBalanceAsync(Guid cardId)
         {
-            var card = await GetCard(cardId);
-            var account = await GetAccount(card.AccountId);            
+            var card = await GetCardAsync(cardId);
+            var account = await GetAccountAsync(card.AccountId);            
 
             return account.Balance;
         }
 
         public async Task<bool> WithdrawCashAsync(Guid cardId, decimal amount)
         {
-            var accountBalance = await GetBalanceAsync(cardId);
+            using var transaction = await _context.Database.BeginTransactionAsync();
 
-            if (accountBalance < amount) throw new Exception("not enough money");
-
-            var cassettes = await _cassetteRepo.GetAllAsync();
-            var orderedCassettes = cassettes.OrderByDescending(c => c.Denomination).ToList();
-
-            decimal remainingAmount = amount;
-
-            var notesToDispense = new Dictionary<AtmCassette, int>();
-
-            foreach (var cassette in orderedCassettes)
+            try
             {
-                if (remainingAmount == 0) break;
+                var accountBalance = await GetBalanceAsync(cardId);
 
-                if(cassette.Count > 0 && cassette.Denomination <= remainingAmount)
+                if (accountBalance < amount) throw new Exception("not enough money");
+
+                var cassettes = await _cassetteRepo.GetAllAsync();
+                var orderedCassettes = cassettes.OrderByDescending(c => c.Denomination).ToList();
+
+                decimal remainingAmount = amount;
+
+                var notesToDispense = new Dictionary<AtmCassette, int>();
+
+                foreach (var cassette in orderedCassettes)
                 {
-                    int notesNeeded = (int)(remainingAmount / cassette.Denomination);
+                    if (remainingAmount == 0) break;
 
-                    int notesToTake = Math.Min(notesNeeded, cassette.Count);
-
-                    if (notesToTake > 0)
+                    if (cassette.Count > 0 && cassette.Denomination <= remainingAmount)
                     {
-                        notesToDispense.Add(cassette, notesToTake);
+                        int notesNeeded = (int)(remainingAmount / cassette.Denomination);
 
-                        remainingAmount -= (notesToTake * cassette.Denomination);
+                        int notesToTake = Math.Min(notesNeeded, cassette.Count);
+
+                        if (notesToTake > 0)
+                        {
+                            notesToDispense.Add(cassette, notesToTake);
+
+                            remainingAmount -= (notesToTake * cassette.Denomination);
+                        }
                     }
                 }
-            }
 
-            if( remainingAmount > 0)
+                if (remainingAmount > 0)
+                {
+                    throw new Exception("not enough money in the ATM");
+                }
+
+                var card = await GetCardAsync(cardId);
+                var account = await GetAccountAsync(card.AccountId);
+
+                account.Balance -= amount;
+
+                await _accountRepo.UpdateAsync(account);
+
+                foreach (var item in notesToDispense)
+                {
+                    var cassetteToUpdate = item.Key;
+                    cassetteToUpdate.Count -= item.Value;
+                    await _cassetteRepo.UpdateAsync(cassetteToUpdate);
+                }
+                await transaction.CommitAsync();
+
+                return true;
+            }catch (Exception)
             {
-                throw new Exception("not enough money in the ATM");
+                await transaction.RollbackAsync(); 
+                throw;
             }
-
-            var card = await GetCard(cardId);
-            var account = await GetAccount(card.AccountId);
-
-            account.Balance -= amount;
-
-            await _accountRepo.UpdateAsync(account);
-
-            foreach (var item in notesToDispense)
-            {
-                var cassetteToUpdate = item.Key;
-                cassetteToUpdate.Count -= item.Value;
-                await _cassetteRepo.UpdateAsync(cassetteToUpdate);
-            }
-
-            return true;
         }
 
-        private async Task<Card> GetCard(Guid cardId)
+        private async Task<Card> GetCardAsync(Guid cardId)
         {
             var card = await _cardRepo.GetByCardByIdAsync(cardId);
 
@@ -133,7 +178,7 @@ namespace ATM.Infrastructure.Services
 
             return card;
         }
-        private async Task<Account> GetAccount(Guid accountId)
+        private async Task<Account> GetAccountAsync(Guid accountId)
         {
             var account = await _accountRepo.GetAccountByIdAsync(accountId);
 
