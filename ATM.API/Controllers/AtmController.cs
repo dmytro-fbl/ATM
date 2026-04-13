@@ -45,7 +45,12 @@ namespace ATM.API.Controllers
             }
         }
 
-        
+        [HttpGet("balance/{cardId}")]
+        public async Task<IActionResult> Balance([FromRoute] Guid cardId)
+        {
+            var balance = await _atmService.GetBalanceAsync(cardId);
+            return Ok(new { balance = balance, currency = "UAH"});
+        }
 
 
     }
