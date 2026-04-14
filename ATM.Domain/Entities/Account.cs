@@ -10,7 +10,7 @@ namespace ATM.Domain.Entities
     {
         public Guid Id { get; set; }
         public Guid UserId { get; set; }
-        public virtual string User { get; set; } = null!;
+        public virtual User User { get; set; } = null!;
         public decimal Balance { get; set; } = 0.00m;
         public string Currency { get; set; } = "UAH";
 

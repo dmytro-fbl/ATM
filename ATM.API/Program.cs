@@ -4,12 +4,13 @@ using ATM.Infrastructure.Repositories;
 using ATM.Infrastructure.Services;
 using ATM.Domain.Interfaces;
 using ATM.Domain.Interfaces.Services;
+using System.Threading.Tasks;
 
 namespace ATM.API
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
@@ -32,6 +33,24 @@ namespace ATM.API
             builder.Services.AddControllersWithViews();
 
             var app = builder.Build();
+
+            using (var scope = app.Services.CreateScope())
+            {
+                var services = scope.ServiceProvider;
+
+                try
+                {
+                    var context = services.GetRequiredService<AppDbContext>();
+                    var passwordHasher = services.GetRequiredService<IPasswordHasher>();
+
+                    await context.Database.MigrateAsync();
+
+                    await DbInitializer.SeedDataAsync(context, passwordHasher);
+                }catch (Exception ex)
+                {
+                    Console.WriteLine($"Помилка при ініціалізації БД: {ex.Message}");
+                }
+            }
 
             // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())

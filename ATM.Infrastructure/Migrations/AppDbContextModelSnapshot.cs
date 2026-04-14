@@ -35,10 +35,6 @@ namespace ATM.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("User")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
 
@@ -183,11 +179,13 @@ namespace ATM.Infrastructure.Migrations
 
             modelBuilder.Entity("ATM.Domain.Entities.Account", b =>
                 {
-                    b.HasOne("ATM.Domain.Entities.User", null)
+                    b.HasOne("ATM.Domain.Entities.User", "User")
                         .WithMany("Accounts")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("ATM.Domain.Entities.Card", b =>

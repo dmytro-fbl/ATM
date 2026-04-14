@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ATM.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260407182913_AddCardIdToOperation")]
-    partial class AddCardIdToOperation
+    [Migration("20260413184119_UpdateAccountUserRelationship")]
+    partial class UpdateAccountUserRelationship
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -34,20 +34,16 @@ namespace ATM.Infrastructure.Migrations
                     b.Property<decimal>("Balance")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<Guid>("CardId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("Currency")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("User")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CardId");
+                    b.HasIndex("UserId");
 
                     b.ToTable("Accounts", (string)null);
                 });
@@ -105,6 +101,9 @@ namespace ATM.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("CardNumber")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -122,12 +121,9 @@ namespace ATM.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("AccountId");
 
                     b.ToTable("Cards", (string)null);
                 });
@@ -186,22 +182,24 @@ namespace ATM.Infrastructure.Migrations
 
             modelBuilder.Entity("ATM.Domain.Entities.Account", b =>
                 {
-                    b.HasOne("ATM.Domain.Entities.Card", "Card")
+                    b.HasOne("ATM.Domain.Entities.User", "User")
                         .WithMany("Accounts")
-                        .HasForeignKey("CardId")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Card");
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("ATM.Domain.Entities.Card", b =>
                 {
-                    b.HasOne("ATM.Domain.Entities.User", null)
+                    b.HasOne("ATM.Domain.Entities.Account", "Account")
                         .WithMany("Cards")
-                        .HasForeignKey("UserId")
+                        .HasForeignKey("AccountId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Account");
                 });
 
             modelBuilder.Entity("ATM.Domain.Entities.Transaction", b =>
@@ -217,17 +215,14 @@ namespace ATM.Infrastructure.Migrations
 
             modelBuilder.Entity("ATM.Domain.Entities.Account", b =>
                 {
-                    b.Navigation("Transactions");
-                });
+                    b.Navigation("Cards");
 
-            modelBuilder.Entity("ATM.Domain.Entities.Card", b =>
-                {
-                    b.Navigation("Accounts");
+                    b.Navigation("Transactions");
                 });
 
             modelBuilder.Entity("ATM.Domain.Entities.User", b =>
                 {
-                    b.Navigation("Cards");
+                    b.Navigation("Accounts");
                 });
 #pragma warning restore 612, 618
         }
