@@ -1,10 +1,12 @@
-using Microsoft.EntityFrameworkCore;
+using System.Threading.Tasks;
+using ATM.API.Middleware;
+using ATM.Domain.Interfaces;
+using ATM.Domain.Interfaces.Services;
 using ATM.Infrastructure.Data;
 using ATM.Infrastructure.Repositories;
 using ATM.Infrastructure.Services;
-using ATM.Domain.Interfaces;
-using ATM.Domain.Interfaces.Services;
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.EntityFrameworkCore;
 
 namespace ATM.API
 {
@@ -34,6 +36,7 @@ namespace ATM.API
 
             var app = builder.Build();
 
+
             using (var scope = app.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;
@@ -52,13 +55,8 @@ namespace ATM.API
                 }
             }
 
-            // Configure the HTTP request pipeline.
-            if (!app.Environment.IsDevelopment())
-            {
-                app.UseExceptionHandler("/Home/Error");
-                // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-                app.UseHsts();
-            }
+            app.UseMiddleware<ExceptionHandlingMiddleware>();
+
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();

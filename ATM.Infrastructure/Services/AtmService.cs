@@ -41,9 +41,12 @@ namespace ATM.Infrastructure.Services
         {
             var card = await _cardRepo.GetByCardByNumberAsync(cardNumber);
 
-            if (card == null) return false;
+            if (card == null)
+                throw new Exception("Картку з таким номером не знайдено");
 
-            return _passwordHasher.VerifyPassword(pin, card.PinHash);
+            if (!_passwordHasher.VerifyPassword(pin, card.PinHash))
+                throw new Exception("Невірний ПІН-код");
+            return true;
         }
 
         public async Task<bool> DepositCashAsync(Guid cardId, Dictionary<int, int> banknotes)
@@ -56,12 +59,12 @@ namespace ATM.Infrastructure.Services
                 foreach (var note in banknotes)
                 {
                     if (note.Key <= 0 || note.Value <= 0)
-                        throw new Exception("Incorrect banknote data");
+                        throw new Exception("Неправильні дані банкноти");
 
                     totalDepositAmount += (note.Key * note.Value);
                 }
                 if (totalDepositAmount == 0)
-                    throw new Exception("The top-up amount must be greater than zero.");
+                    throw new Exception("Сума поповнення має бути більшою за нуль.");
 
                 var card = await GetCardAsync(cardId);
                 var account = await GetAccountAsync(card.AccountId);
@@ -77,7 +80,7 @@ namespace ATM.Infrastructure.Services
 
                     if (cassette == null)
                     {
-                        throw new Exception($"The ATM does not accept banknotes of the same denomination {denomination}");
+                        throw new Exception($"Банкомат не приймає банкноти одного номіналу {denomination}");
                     }
 
                     cassette.Count += countToAdd;
@@ -101,10 +104,17 @@ namespace ATM.Infrastructure.Services
 
         public async Task<decimal> GetBalanceAsync(Guid cardId)
         {
-            var card = await GetCardAsync(cardId);
-            var account = await GetAccountAsync(card.AccountId);            
+            try
+            {
+                var card = await GetCardAsync(cardId);
+                var account = await GetAccountAsync(card.AccountId);
 
-            return account.Balance;
+                return account.Balance;
+            }
+            catch
+            {
+                throw new Exception("Помилка Операції");
+            }
         }
 
         public async Task<bool> WithdrawCashAsync(Guid cardId, decimal amount)
@@ -115,7 +125,7 @@ namespace ATM.Infrastructure.Services
             {
                 var accountBalance = await GetBalanceAsync(cardId);
 
-                if (accountBalance < amount) throw new Exception("not enough money");
+                if (accountBalance < amount) throw new Exception("Недостатньо коштів");
 
                 var cassettes = await _cassetteRepo.GetAllAsync();
                 var orderedCassettes = cassettes.OrderByDescending(c => c.Denomination).ToList();
@@ -145,7 +155,7 @@ namespace ATM.Infrastructure.Services
 
                 if (remainingAmount > 0)
                 {
-                    throw new Exception("not enough money in the ATM");
+                    throw new Exception("Недостатньо коштів в банкоматі");
                 }
 
                 var card = await GetCardAsync(cardId);
@@ -166,7 +176,7 @@ namespace ATM.Infrastructure.Services
                 return true;
             }catch (Exception)
             {
-                await transaction.RollbackAsync(); 
+                await transaction.RollbackAsync();
                 throw;
             }
         }
@@ -175,7 +185,7 @@ namespace ATM.Infrastructure.Services
         {
             var card = await _cardRepo.GetByCardByIdAsync(cardId);
 
-            if (card == null) throw new Exception("Card not found");
+            if (card == null) throw new Exception("Карту не знайдено");
 
             return card;
         }
@@ -183,7 +193,7 @@ namespace ATM.Infrastructure.Services
         {
             var account = await _accountRepo.GetAccountByIdAsync(accountId);
 
-            if (account == null) throw new Exception("Account not found");
+            if (account == null) throw new Exception("Акаунт не знайдено");
 
             return account;
         }
