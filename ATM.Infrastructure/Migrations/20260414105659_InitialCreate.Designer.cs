@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ATM.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260407154206_InitialCreate")]
+    [Migration("20260414105659_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -34,9 +34,6 @@ namespace ATM.Infrastructure.Migrations
                     b.Property<decimal>("Balance")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<Guid>("CardId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("Currency")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -45,9 +42,12 @@ namespace ATM.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("CardId");
+                    b.HasIndex("UserId");
 
                     b.ToTable("Accounts", (string)null);
                 });
@@ -77,6 +77,9 @@ namespace ATM.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("CardId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTime>("LogDate")
                         .HasColumnType("datetime2");
 
@@ -102,6 +105,9 @@ namespace ATM.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("CardNumber")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -119,12 +125,9 @@ namespace ATM.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("AccountId");
 
                     b.ToTable("Cards", (string)null);
                 });
@@ -183,22 +186,22 @@ namespace ATM.Infrastructure.Migrations
 
             modelBuilder.Entity("ATM.Domain.Entities.Account", b =>
                 {
-                    b.HasOne("ATM.Domain.Entities.Card", "Card")
+                    b.HasOne("ATM.Domain.Entities.User", null)
                         .WithMany("Accounts")
-                        .HasForeignKey("CardId")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Card");
                 });
 
             modelBuilder.Entity("ATM.Domain.Entities.Card", b =>
                 {
-                    b.HasOne("ATM.Domain.Entities.User", null)
+                    b.HasOne("ATM.Domain.Entities.Account", "Account")
                         .WithMany("Cards")
-                        .HasForeignKey("UserId")
+                        .HasForeignKey("AccountId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Account");
                 });
 
             modelBuilder.Entity("ATM.Domain.Entities.Transaction", b =>
@@ -214,17 +217,14 @@ namespace ATM.Infrastructure.Migrations
 
             modelBuilder.Entity("ATM.Domain.Entities.Account", b =>
                 {
-                    b.Navigation("Transactions");
-                });
+                    b.Navigation("Cards");
 
-            modelBuilder.Entity("ATM.Domain.Entities.Card", b =>
-                {
-                    b.Navigation("Accounts");
+                    b.Navigation("Transactions");
                 });
 
             modelBuilder.Entity("ATM.Domain.Entities.User", b =>
                 {
-                    b.Navigation("Cards");
+                    b.Navigation("Accounts");
                 });
 #pragma warning restore 612, 618
         }

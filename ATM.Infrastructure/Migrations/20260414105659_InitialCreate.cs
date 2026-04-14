@@ -30,6 +30,7 @@ namespace ATM.Infrastructure.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CardId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     LogDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     LogLevel = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Message = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -55,11 +56,32 @@ namespace ATM.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Cards",
+                name: "Accounts",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    User = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Balance = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Currency = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Accounts", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Accounts_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Cards",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    AccountId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     CardNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     PinHash = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     ExpiryDate = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -70,30 +92,9 @@ namespace ATM.Infrastructure.Migrations
                 {
                     table.PrimaryKey("PK_Cards", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Cards_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Accounts",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CardId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    User = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Balance = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    Currency = table.Column<string>(type: "nvarchar(max)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Accounts", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Accounts_Cards_CardId",
-                        column: x => x.CardId,
-                        principalTable: "Cards",
+                        name: "FK_Cards_Accounts_AccountId",
+                        column: x => x.AccountId,
+                        principalTable: "Accounts",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -121,14 +122,14 @@ namespace ATM.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_Accounts_CardId",
+                name: "IX_Accounts_UserId",
                 table: "Accounts",
-                column: "CardId");
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Cards_UserId",
+                name: "IX_Cards_AccountId",
                 table: "Cards",
-                column: "UserId");
+                column: "AccountId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Transactions_AccountId",
@@ -146,13 +147,13 @@ namespace ATM.Infrastructure.Migrations
                 name: "ATMOperationLogs");
 
             migrationBuilder.DropTable(
+                name: "Cards");
+
+            migrationBuilder.DropTable(
                 name: "Transactions");
 
             migrationBuilder.DropTable(
                 name: "Accounts");
-
-            migrationBuilder.DropTable(
-                name: "Cards");
 
             migrationBuilder.DropTable(
                 name: "Users");
