@@ -41,7 +41,7 @@ namespace ATM.API.Controllers
             }
             else
             {
-                return BadRequest(new { message = "Помилка операції" });
+                throw new Exception("Помилка операції");
             }
         }
 
@@ -63,7 +63,7 @@ namespace ATM.API.Controllers
             }
             else
             {
-                return BadRequest(new { message = "Помилка операції" });
+                throw new Exception("Помилка операції");
             }
         }
     }
