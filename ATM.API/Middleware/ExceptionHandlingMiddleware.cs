@@ -1,6 +1,9 @@
 ﻿using System.Net;
 using System.Text.Json;
+using ATM.Domain.Entities;
+using ATM.Domain.Interfaces;
 using ATM.Infrastructure.Data;
+using ATM.Infrastructure.Repositories;
 
 namespace ATM.API.Middleware
 {
@@ -13,7 +16,7 @@ namespace ATM.API.Middleware
             _next = next;
         }
 
-        public async Task InvokeAsync(HttpContext context)
+        public async Task InvokeAsync(HttpContext context, IAtmOperationLogRepository logRepo)
         {
             try
             {
@@ -21,12 +24,24 @@ namespace ATM.API.Middleware
             }
             catch (Exception ex)
             {
-                await HandleExceptionAsync(context, ex);
+                await HandleExceptionAsync(context, ex, logRepo);
             }
         }
 
-        private async Task HandleExceptionAsync(HttpContext context, Exception exception)
+        private async Task HandleExceptionAsync(HttpContext context, Exception exception, IAtmOperationLogRepository logRepo)
         {
+            var log = new AtmOperationLog
+            {
+                Id = Guid.NewGuid(),
+                LogDate = DateTime.UtcNow,
+                LogLevel = "Error",
+                Message = $"Критична помилка сервера: {exception.Message}",
+                StackTrace = exception.StackTrace,
+                CardId = null
+            };
+
+            await logRepo.AddAsync(log);
+
             context.Response.ContentType = "application/json";
             context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
 
