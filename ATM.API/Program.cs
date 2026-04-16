@@ -2,9 +2,11 @@ using System.Threading.Tasks;
 using ATM.API.Middleware;
 using ATM.Domain.Interfaces;
 using ATM.Domain.Interfaces.Services;
+using ATM.Domain.Interfaces.Strategies;
 using ATM.Infrastructure.Data;
 using ATM.Infrastructure.Repositories;
 using ATM.Infrastructure.Services;
+using ATM.Infrastructure.Strategies;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,6 +31,7 @@ namespace ATM.API
             builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
             builder.Services.AddScoped<IAtmCassetteRepository, AtmCassetteRepository>();
             builder.Services.AddScoped<IAtmOperationLogRepository, AtmOperationLogRepository>();
+            builder.Services.AddScoped<ICashWithdrawalStrategy, GreedyWithdrawalStrategy>();
 
 
             // Add services to the container.

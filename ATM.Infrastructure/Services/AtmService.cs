@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using ATM.Domain.Entities;
 using ATM.Domain.Interfaces;
 using ATM.Domain.Interfaces.Services;
+using ATM.Domain.Interfaces.Strategies;
 using ATM.Infrastructure.Data;
 using ATM.Infrastructure.Repositories;
 
@@ -21,9 +22,12 @@ namespace ATM.Infrastructure.Services
         private IAtmOperationLogRepository _operationLogRepo;
         private readonly IPasswordHasher _passwordHasher;
 
+        private readonly ICashWithdrawalStrategy _withdrawalStrategy;
+
         public AtmService(AppDbContext context, ICardRepository cardRepo, IAccountRepository accountRepo,
             ITransactionRepository transactionRepo, IAtmCassetteRepository cassetteRepo,
-            IAtmOperationLogRepository operationLogRepo, IPasswordHasher passwordHasher
+            IAtmOperationLogRepository operationLogRepo, IPasswordHasher passwordHasher,
+            ICashWithdrawalStrategy withdrawalStrategy
             )
         {
             _context = context;
@@ -33,6 +37,7 @@ namespace ATM.Infrastructure.Services
             _cassetteRepo = cassetteRepo;
             _operationLogRepo = operationLogRepo;
             _passwordHasher = passwordHasher;
+            _withdrawalStrategy = withdrawalStrategy;
         }
 
 
@@ -116,6 +121,7 @@ namespace ATM.Infrastructure.Services
                     Amount = totalDepositAmount,
                     TransactionType = "Поповнення",
                     TransactionDate = DateTime.UtcNow,
+                    Status = "Успішно"
                 };
 
                 await _transactionRepo.AddAsync(newTransaction);
@@ -163,36 +169,8 @@ namespace ATM.Infrastructure.Services
                 }
 
                 var cassettes = await _cassetteRepo.GetAllAsync();
-                var orderedCassettes = cassettes.OrderByDescending(c => c.Denomination).ToList();
 
-                decimal remainingAmount = amount;
-
-                var notesToDispense = new Dictionary<AtmCassette, int>();
-
-                foreach (var cassette in orderedCassettes)
-                {
-                    if (remainingAmount == 0) break;
-
-                    if (cassette.Count > 0 && cassette.Denomination <= remainingAmount)
-                    {
-                        int notesNeeded = (int)(remainingAmount / cassette.Denomination);
-
-                        int notesToTake = Math.Min(notesNeeded, cassette.Count);
-
-                        if (notesToTake > 0)
-                        {
-                            notesToDispense.Add(cassette, notesToTake);
-
-                            remainingAmount -= (notesToTake * cassette.Denomination);
-                        }
-                    }
-                }
-
-                if (remainingAmount > 0)
-                {
-                    await LogAsync("Недостатньо коштів в банкоматі", "Info", cardId);
-                    throw new Exception("Недостатньо коштів в банкоматі");
-                }
+                var notesToDispense = _withdrawalStrategy.CalculateNotes(amount, cassettes);
 
                 var card = await GetCardAsync(cardId);
                 var account = await GetAccountAsync(card.AccountId);
@@ -215,6 +193,7 @@ namespace ATM.Infrastructure.Services
                     Amount = -amount,
                     TransactionType = "Зняття",
                     TransactionDate = DateTime.UtcNow,
+                    Status = "Успішно"
                 };
 
                 await _transactionRepo.AddAsync(newTransaction);
