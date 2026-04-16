@@ -35,17 +35,29 @@ namespace ATM.Infrastructure.Services
             _passwordHasher = passwordHasher;
         }
 
-       
+
 
         public async Task<bool> AuthenticateAsync(string cardNumber, string pin)
         {
             var card = await _cardRepo.GetByCardByNumberAsync(cardNumber);
 
             if (card == null)
+            {
+                await LogAsync("Невірний номер карти", "Warning");
                 throw new Exception("Картку з таким номером не знайдено");
 
+            }
+
+
             if (!_passwordHasher.VerifyPassword(pin, card.PinHash))
+            {
+                await LogAsync("Невірний ПІН-код", "Warning", card.Id);
                 throw new Exception("Невірний ПІН-код");
+            }
+
+
+            await LogAsync("Спроба входу", "Info", card.Id);
+            
             return true;
         }
 
@@ -59,12 +71,18 @@ namespace ATM.Infrastructure.Services
                 foreach (var note in banknotes)
                 {
                     if (note.Key <= 0 || note.Value <= 0)
+                    {
+                        await LogAsync("Неправильні дані банкноти", "Warning", cardId);
                         throw new Exception("Неправильні дані банкноти");
+                    }
 
                     totalDepositAmount += (note.Key * note.Value);
                 }
                 if (totalDepositAmount == 0)
+                {
+                    await LogAsync("Сума поповнення має бути більшою за нуль", "Info", cardId);
                     throw new Exception("Сума поповнення має бути більшою за нуль.");
+                }
 
                 var card = await GetCardAsync(cardId);
                 var account = await GetAccountAsync(card.AccountId);
@@ -80,7 +98,8 @@ namespace ATM.Infrastructure.Services
 
                     if (cassette == null)
                     {
-                        throw new Exception($"Банкомат не приймає банкноти одного номіналу {denomination}");
+                        await LogAsync($"Банкомат не приймає банкноти такого номіналу {denomination}", "Warning", cardId);
+                        throw new Exception($"Банкомат не приймає банкноти такого номіналу {denomination}");
                     }
 
                     cassette.Count += countToAdd;
@@ -90,16 +109,26 @@ namespace ATM.Infrastructure.Services
                 account.Balance += totalDepositAmount;
                 await _accountRepo.UpdateAsync(account);
 
+                var newTransaction = new Transaction
+                {
+                    Id = Guid.NewGuid(),
+                    AccountId = account.Id,
+                    Amount = totalDepositAmount,
+                    TransactionType = "Поповнення",
+                    TransactionDate = DateTime.UtcNow,
+                };
+
+                await _transactionRepo.AddAsync(newTransaction);
+                await LogAsync("Поповнення коштів", "Info", cardId);
                 await transaction.CommitAsync();
                 return true;
             }
             catch (Exception)
             {
                 await transaction.RollbackAsync();
+                await LogAsync("Скасування операції депозиту", "Error", cardId);
                 throw;
             }
-
-            
         }
 
         public async Task<decimal> GetBalanceAsync(Guid cardId)
@@ -109,10 +138,12 @@ namespace ATM.Infrastructure.Services
                 var card = await GetCardAsync(cardId);
                 var account = await GetAccountAsync(card.AccountId);
 
+                await LogAsync("Огляд рахунку", "Info", cardId);
                 return account.Balance;
             }
             catch
             {
+                await LogAsync("Помилка огляду рахунку", "Error", cardId);
                 throw new Exception("Помилка Операції");
             }
         }
@@ -125,7 +156,11 @@ namespace ATM.Infrastructure.Services
             {
                 var accountBalance = await GetBalanceAsync(cardId);
 
-                if (accountBalance < amount) throw new Exception("Недостатньо коштів");
+                if (accountBalance < amount)
+                {
+                    await LogAsync("Недостатньо коштів для зняття", "Info", cardId);
+                    throw new Exception("Недостатньо коштів");
+                }
 
                 var cassettes = await _cassetteRepo.GetAllAsync();
                 var orderedCassettes = cassettes.OrderByDescending(c => c.Denomination).ToList();
@@ -155,6 +190,7 @@ namespace ATM.Infrastructure.Services
 
                 if (remainingAmount > 0)
                 {
+                    await LogAsync("Недостатньо коштів в банкоматі", "Info", cardId);
                     throw new Exception("Недостатньо коштів в банкоматі");
                 }
 
@@ -171,11 +207,24 @@ namespace ATM.Infrastructure.Services
                     cassetteToUpdate.Count -= item.Value;
                     await _cassetteRepo.UpdateAsync(cassetteToUpdate);
                 }
-                await transaction.CommitAsync();
 
+                var newTransaction = new Transaction
+                {
+                    Id = Guid.NewGuid(),
+                    AccountId = account.Id,
+                    Amount = -amount,
+                    TransactionType = "Зняття",
+                    TransactionDate = DateTime.UtcNow,
+                };
+
+                await _transactionRepo.AddAsync(newTransaction);
+
+                await LogAsync("Успішне зняття коштів", "Info", cardId);
+                await transaction.CommitAsync();
                 return true;
             }catch (Exception)
             {
+                await LogAsync("помилка операції зняття", "Error", cardId);
                 await transaction.RollbackAsync();
                 throw;
             }
@@ -196,6 +245,17 @@ namespace ATM.Infrastructure.Services
             if (account == null) throw new Exception("Акаунт не знайдено");
 
             return account;
+        }
+        private async Task LogAsync( string message, string level, Guid? cartId = null)
+        {
+            await _operationLogRepo.AddAsync(new AtmOperationLog
+            {
+                Id = Guid.NewGuid(),
+                CardId = cartId,
+                LogDate = DateTime.UtcNow,
+                Message = message,
+                LogLevel = level
+            });
         }
     }
 }
