@@ -36,7 +36,6 @@ namespace ATM.Infrastructure.Services
             _accountRepo = accountRepo;
             _transactionRepo = transactionRepo;
             _cassetteRepo = cassetteRepo;
-            //_operationLogRepo = operationLogRepo;
             _passwordHasher = passwordHasher;
             _withdrawalStrategy = withdrawalStrategy;
         }
@@ -226,16 +225,6 @@ namespace ATM.Infrastructure.Services
 
             return account;
         }
-        //private async Task LogAsync( string message, string level, Guid? cartId = null)
-        //{
-        //    await _operationLogRepo.AddAsync(new AtmOperationLog
-        //    {
-        //        Id = Guid.NewGuid(),
-        //        CardId = cartId,
-        //        LogDate = DateTime.UtcNow,
-        //        Message = message,
-        //        LogLevel = level
-        //    });
-        //}
+
     }
 }
