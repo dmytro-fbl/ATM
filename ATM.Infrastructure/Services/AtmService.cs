@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using ATM.Domain.Entities;
 using ATM.Domain.Interfaces;
+using ATM.Domain.Interfaces.Base;
 using ATM.Domain.Interfaces.Services;
 using ATM.Domain.Interfaces.Strategies;
 using ATM.Infrastructure.Data;
@@ -12,7 +13,7 @@ using ATM.Infrastructure.Repositories;
 
 namespace ATM.Infrastructure.Services
 {
-    public class AtmService : IAtmService
+    public class AtmService : BaseService, IAtmService
     {
         private readonly AppDbContext _context;
         private ICardRepository _cardRepo;
@@ -28,14 +29,13 @@ namespace ATM.Infrastructure.Services
             ITransactionRepository transactionRepo, IAtmCassetteRepository cassetteRepo,
             IAtmOperationLogRepository operationLogRepo, IPasswordHasher passwordHasher,
             ICashWithdrawalStrategy withdrawalStrategy
-            )
+            ) : base(operationLogRepo)
         {
             _context = context;
             _cardRepo = cardRepo;
             _accountRepo = accountRepo;
             _transactionRepo = transactionRepo;
             _cassetteRepo = cassetteRepo;
-            _operationLogRepo = operationLogRepo;
             _passwordHasher = passwordHasher;
             _withdrawalStrategy = withdrawalStrategy;
         }
@@ -48,7 +48,7 @@ namespace ATM.Infrastructure.Services
 
             if (card == null)
             {
-                await LogAsync("Невірний номер карти", "Warning");
+                await LogWarningAsync("Невірний номер карти");
                 throw new Exception("Картку з таким номером не знайдено");
 
             }
@@ -56,12 +56,12 @@ namespace ATM.Infrastructure.Services
 
             if (!_passwordHasher.VerifyPassword(pin, card.PinHash))
             {
-                await LogAsync("Невірний ПІН-код", "Warning", card.Id);
+                await LogWarningAsync("Невірний ПІН-код", card.Id);
                 throw new Exception("Невірний ПІН-код");
             }
 
 
-            await LogAsync("Спроба входу", "Info", card.Id);
+            await LogInfoAsync("Спроба входу", card.Id);
             
             return true;
         }
@@ -77,7 +77,7 @@ namespace ATM.Infrastructure.Services
                 {
                     if (note.Key <= 0 || note.Value <= 0)
                     {
-                        await LogAsync("Неправильні дані банкноти", "Warning", cardId);
+                        await LogWarningAsync("Неправильні дані банкноти", cardId);
                         throw new Exception("Неправильні дані банкноти");
                     }
 
@@ -85,7 +85,7 @@ namespace ATM.Infrastructure.Services
                 }
                 if (totalDepositAmount == 0)
                 {
-                    await LogAsync("Сума поповнення має бути більшою за нуль", "Info", cardId);
+                    await LogInfoAsync("Сума поповнення має бути більшою за нуль", cardId);
                     throw new Exception("Сума поповнення має бути більшою за нуль.");
                 }
 
@@ -103,7 +103,7 @@ namespace ATM.Infrastructure.Services
 
                     if (cassette == null)
                     {
-                        await LogAsync($"Банкомат не приймає банкноти такого номіналу {denomination}", "Warning", cardId);
+                        await LogWarningAsync($"Банкомат не приймає банкноти такого номіналу {denomination}", cardId);
                         throw new Exception($"Банкомат не приймає банкноти такого номіналу {denomination}");
                     }
 
@@ -125,14 +125,14 @@ namespace ATM.Infrastructure.Services
                 };
 
                 await _transactionRepo.AddAsync(newTransaction);
-                await LogAsync("Поповнення коштів", "Info", cardId);
+                await LogInfoAsync("Поповнення коштів", cardId);
                 await transaction.CommitAsync();
                 return true;
             }
             catch (Exception)
             {
                 await transaction.RollbackAsync();
-                await LogAsync("Скасування операції депозиту", "Error", cardId);
+                await LogErrorAsync("Скасування операції депозиту", cardId);
                 throw;
             }
         }
@@ -144,12 +144,12 @@ namespace ATM.Infrastructure.Services
                 var card = await GetCardAsync(cardId);
                 var account = await GetAccountAsync(card.AccountId);
 
-                await LogAsync("Огляд рахунку", "Info", cardId);
+                await LogInfoAsync("Огляд рахунку", cardId);
                 return account.Balance;
             }
             catch
             {
-                await LogAsync("Помилка огляду рахунку", "Error", cardId);
+                await LogErrorAsync("Помилка огляду рахунку", cardId);
                 throw new Exception("Помилка Операції");
             }
         }
@@ -164,7 +164,7 @@ namespace ATM.Infrastructure.Services
 
                 if (accountBalance < amount)
                 {
-                    await LogAsync("Недостатньо коштів для зняття", "Info", cardId);
+                    await LogInfoAsync("Недостатньо коштів для зняття", cardId);
                     throw new Exception("Недостатньо коштів");
                 }
 
@@ -198,12 +198,12 @@ namespace ATM.Infrastructure.Services
 
                 await _transactionRepo.AddAsync(newTransaction);
 
-                await LogAsync("Успішне зняття коштів", "Info", cardId);
+                await LogInfoAsync("Успішне зняття коштів", cardId);
                 await transaction.CommitAsync();
                 return true;
             }catch (Exception)
             {
-                await LogAsync("помилка операції зняття", "Error", cardId);
+                await LogErrorAsync("помилка операції зняття", cardId);
                 await transaction.RollbackAsync();
                 throw;
             }
@@ -225,16 +225,6 @@ namespace ATM.Infrastructure.Services
 
             return account;
         }
-        private async Task LogAsync( string message, string level, Guid? cartId = null)
-        {
-            await _operationLogRepo.AddAsync(new AtmOperationLog
-            {
-                Id = Guid.NewGuid(),
-                CardId = cartId,
-                LogDate = DateTime.UtcNow,
-                Message = message,
-                LogLevel = level
-            });
-        }
+
     }
 }
