@@ -35,17 +35,58 @@ namespace ATM.Infrastructure.Services
             _passwordHasher = passwordHasher;
         }
 
-       
+
 
         public async Task<bool> AuthenticateAsync(string cardNumber, string pin)
         {
             var card = await _cardRepo.GetByCardByNumberAsync(cardNumber);
 
             if (card == null)
+            {
+                await LogAsync("Невірний номер карти", "warning");
+                //var newLogIncorrectCard = new AtmOperationLog
+                //{
+                //    Id = Guid.NewGuid(),
+                //    LogDate = DateTime.UtcNow,
+                //    Message = "Невірний номер карти",
+                //    LogLevel = "warning",
+                //    StackTrace = null
+                //};
+                //await _operationLogRepo.AddAsync(newLogIncorrectCard);
                 throw new Exception("Картку з таким номером не знайдено");
 
+            }
+
+
             if (!_passwordHasher.VerifyPassword(pin, card.PinHash))
+            {
+                await LogAsync("Невірний ПІН-код", "warning", card.Id);
+
+                //var newLogIncorrectPINCode = new AtmOperationLog
+                //{
+                //    Id = Guid.NewGuid(),
+                //    CardId = card.Id,
+                //    LogDate = DateTime.UtcNow,
+                //    Message = "Невірний ПІН-код",
+                //    LogLevel = "warning",
+                //    StackTrace = null
+                //};
+                //await _operationLogRepo.AddAsync(newLogIncorrectPINCode);
                 throw new Exception("Невірний ПІН-код");
+            }
+
+
+            await LogAsync("Спроба входу", "Info", card.Id);
+            //var newLogSuccessfulLogin = new AtmOperationLog
+            //{
+            //    Id = Guid.NewGuid(),
+            //    CardId = card.Id,
+            //    LogDate = DateTime.UtcNow,
+            //    Message = "Спроба входу",
+            //    LogLevel = "Info",
+            //    StackTrace = null
+            //};
+            //await _operationLogRepo.AddAsync(newLogSuccessfulLogin);
             return true;
         }
 
@@ -89,6 +130,17 @@ namespace ATM.Infrastructure.Services
 
                 account.Balance += totalDepositAmount;
                 await _accountRepo.UpdateAsync(account);
+
+                var newTransaction = new Transaction
+                {
+                    Id = Guid.NewGuid(),
+                    AccountId = account.Id,
+                    Amount = totalDepositAmount,
+                    TransactionType = "Поповнення",
+                    TransactionDate = DateTime.UtcNow,
+                };
+
+                await _transactionRepo.AddAsync(newTransaction);
 
                 await transaction.CommitAsync();
                 return true;
@@ -171,6 +223,18 @@ namespace ATM.Infrastructure.Services
                     cassetteToUpdate.Count -= item.Value;
                     await _cassetteRepo.UpdateAsync(cassetteToUpdate);
                 }
+
+                var newTransaction = new Transaction
+                {
+                    Id = Guid.NewGuid(),
+                    AccountId = account.Id,
+                    Amount = -amount,
+                    TransactionType = "Зняття",
+                    TransactionDate = DateTime.UtcNow,
+                };
+
+                await _transactionRepo.AddAsync(newTransaction);
+
                 await transaction.CommitAsync();
 
                 return true;
@@ -196,6 +260,17 @@ namespace ATM.Infrastructure.Services
             if (account == null) throw new Exception("Акаунт не знайдено");
 
             return account;
+        }
+        private async Task LogAsync( string message, string level, Guid? cartId = null)
+        {
+            await _operationLogRepo.AddAsync(new AtmOperationLog
+            {
+                Id = Guid.NewGuid(),
+                CardId = cartId,
+                LogDate = DateTime.UtcNow,
+                Message = message,
+                LogLevel = level
+            });
         }
     }
 }
