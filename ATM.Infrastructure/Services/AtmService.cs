@@ -43,7 +43,7 @@ namespace ATM.Infrastructure.Services
 
             if (card == null)
             {
-                await LogAsync("Невірний номер карти", "warning");
+                await LogAsync("Невірний номер карти", "Warning");
                 //var newLogIncorrectCard = new AtmOperationLog
                 //{
                 //    Id = Guid.NewGuid(),
@@ -60,7 +60,7 @@ namespace ATM.Infrastructure.Services
 
             if (!_passwordHasher.VerifyPassword(pin, card.PinHash))
             {
-                await LogAsync("Невірний ПІН-код", "warning", card.Id);
+                await LogAsync("Невірний ПІН-код", "Warning", card.Id);
 
                 //var newLogIncorrectPINCode = new AtmOperationLog
                 //{
@@ -100,12 +100,18 @@ namespace ATM.Infrastructure.Services
                 foreach (var note in banknotes)
                 {
                     if (note.Key <= 0 || note.Value <= 0)
+                    {
+                        await LogAsync("Неправильні дані банкноти", "Warning", cardId);
                         throw new Exception("Неправильні дані банкноти");
+                    }
 
                     totalDepositAmount += (note.Key * note.Value);
                 }
                 if (totalDepositAmount == 0)
+                {
+                    await LogAsync("Сума поповнення має бути більшою за нуль", "Info", cardId);
                     throw new Exception("Сума поповнення має бути більшою за нуль.");
+                }
 
                 var card = await GetCardAsync(cardId);
                 var account = await GetAccountAsync(card.AccountId);
@@ -121,7 +127,8 @@ namespace ATM.Infrastructure.Services
 
                     if (cassette == null)
                     {
-                        throw new Exception($"Банкомат не приймає банкноти одного номіналу {denomination}");
+                        await LogAsync($"Банкомат не приймає банкноти такого номіналу {denomination}", "Warning", cardId);
+                        throw new Exception($"Банкомат не приймає банкноти такого номіналу {denomination}");
                     }
 
                     cassette.Count += countToAdd;
@@ -141,17 +148,16 @@ namespace ATM.Infrastructure.Services
                 };
 
                 await _transactionRepo.AddAsync(newTransaction);
-
+                await LogAsync("Поповнення коштів", "Info", cardId);
                 await transaction.CommitAsync();
                 return true;
             }
             catch (Exception)
             {
                 await transaction.RollbackAsync();
+                await LogAsync("Скасування операції", "Error", cardId);
                 throw;
             }
-
-            
         }
 
         public async Task<decimal> GetBalanceAsync(Guid cardId)
