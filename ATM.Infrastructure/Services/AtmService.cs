@@ -44,15 +44,6 @@ namespace ATM.Infrastructure.Services
             if (card == null)
             {
                 await LogAsync("Невірний номер карти", "Warning");
-                //var newLogIncorrectCard = new AtmOperationLog
-                //{
-                //    Id = Guid.NewGuid(),
-                //    LogDate = DateTime.UtcNow,
-                //    Message = "Невірний номер карти",
-                //    LogLevel = "warning",
-                //    StackTrace = null
-                //};
-                //await _operationLogRepo.AddAsync(newLogIncorrectCard);
                 throw new Exception("Картку з таким номером не знайдено");
 
             }
@@ -61,32 +52,12 @@ namespace ATM.Infrastructure.Services
             if (!_passwordHasher.VerifyPassword(pin, card.PinHash))
             {
                 await LogAsync("Невірний ПІН-код", "Warning", card.Id);
-
-                //var newLogIncorrectPINCode = new AtmOperationLog
-                //{
-                //    Id = Guid.NewGuid(),
-                //    CardId = card.Id,
-                //    LogDate = DateTime.UtcNow,
-                //    Message = "Невірний ПІН-код",
-                //    LogLevel = "warning",
-                //    StackTrace = null
-                //};
-                //await _operationLogRepo.AddAsync(newLogIncorrectPINCode);
                 throw new Exception("Невірний ПІН-код");
             }
 
 
             await LogAsync("Спроба входу", "Info", card.Id);
-            //var newLogSuccessfulLogin = new AtmOperationLog
-            //{
-            //    Id = Guid.NewGuid(),
-            //    CardId = card.Id,
-            //    LogDate = DateTime.UtcNow,
-            //    Message = "Спроба входу",
-            //    LogLevel = "Info",
-            //    StackTrace = null
-            //};
-            //await _operationLogRepo.AddAsync(newLogSuccessfulLogin);
+            
             return true;
         }
 
@@ -155,7 +126,7 @@ namespace ATM.Infrastructure.Services
             catch (Exception)
             {
                 await transaction.RollbackAsync();
-                await LogAsync("Скасування операції", "Error", cardId);
+                await LogAsync("Скасування операції депозиту", "Error", cardId);
                 throw;
             }
         }
@@ -167,10 +138,12 @@ namespace ATM.Infrastructure.Services
                 var card = await GetCardAsync(cardId);
                 var account = await GetAccountAsync(card.AccountId);
 
+                await LogAsync("Огляд рахунку", "Info", cardId);
                 return account.Balance;
             }
             catch
             {
+                await LogAsync("Помилка огляду рахунку", "Error", cardId);
                 throw new Exception("Помилка Операції");
             }
         }
@@ -183,7 +156,11 @@ namespace ATM.Infrastructure.Services
             {
                 var accountBalance = await GetBalanceAsync(cardId);
 
-                if (accountBalance < amount) throw new Exception("Недостатньо коштів");
+                if (accountBalance < amount)
+                {
+                    await LogAsync("Недостатньо коштів для зняття", "Info", cardId);
+                    throw new Exception("Недостатньо коштів");
+                }
 
                 var cassettes = await _cassetteRepo.GetAllAsync();
                 var orderedCassettes = cassettes.OrderByDescending(c => c.Denomination).ToList();
@@ -213,6 +190,7 @@ namespace ATM.Infrastructure.Services
 
                 if (remainingAmount > 0)
                 {
+                    await LogAsync("Недостатньо коштів в банкоматі", "Info", cardId);
                     throw new Exception("Недостатньо коштів в банкоматі");
                 }
 
@@ -241,11 +219,12 @@ namespace ATM.Infrastructure.Services
 
                 await _transactionRepo.AddAsync(newTransaction);
 
+                await LogAsync("Успішне зняття коштів", "Info", cardId);
                 await transaction.CommitAsync();
-
                 return true;
             }catch (Exception)
             {
+                await LogAsync("помилка операції зняття", "Error", cardId);
                 await transaction.RollbackAsync();
                 throw;
             }
