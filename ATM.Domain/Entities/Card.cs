@@ -15,8 +15,6 @@ namespace ATM.Domain.Entities
         public string PinHash { get; set; }
         public DateTime ExpiryDate { get; set; }
         public bool IsBlocked { get; set; } = false;
-        public int FailedAttempts { get; set; } = 0;
-
-        
+        public int FailedAttempts { get; set; } = 0;   
     }
 }

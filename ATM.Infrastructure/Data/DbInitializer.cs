@@ -76,7 +76,5 @@ namespace ATM.Infrastructure.Data
 
             await context.SaveChangesAsync();
         }
-
-        
     }
 }

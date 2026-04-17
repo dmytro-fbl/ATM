@@ -42,7 +42,5 @@ namespace ATM.Domain.Interfaces.Base
             };
             await _operationLogRepo.AddAsync(log);
         }
-
-        
     }
 }
