@@ -33,7 +33,7 @@ namespace ATM.API.Controllers
         [HttpPost("withdraw")]
         public async Task<IActionResult> Withdraw([FromBody] WithdrawRequest request)
         {
-            bool isSuccess = await _atmService.WithdrawCashAsync(request.CardId, request.Amount);
+            bool isSuccess = await _atmService.WithdrawCashAsync(request.CardId, request.PinHash, request.Amount);
 
             if (isSuccess)
             {

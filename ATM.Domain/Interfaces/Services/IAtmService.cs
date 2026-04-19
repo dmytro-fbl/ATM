@@ -12,7 +12,7 @@ namespace ATM.Domain.Interfaces.Services
 
         Task<decimal> GetBalanceAsync(Guid cardId);
 
-        Task<bool> WithdrawCashAsync(Guid cardId, decimal amount);
+        Task<bool> WithdrawCashAsync(Guid cardId, string pin, decimal amount);
 
         Task<bool> DepositCashAsync(Guid cardId, Dictionary<int, int> banknotes);
     }
