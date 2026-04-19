@@ -46,16 +46,16 @@ namespace ATM.API.Controllers
         }
 
         [HttpGet("balance/{cardId}")]
-        public async Task<IActionResult> Balance([FromRoute] Guid cardId)
+        public async Task<IActionResult> Balance([FromRoute] Guid cardId, string pin)
         {
-            var balance = await _atmService.GetBalanceAsync(cardId);
+            var balance = await _atmService.GetBalanceAsync(cardId, pin);
             return Ok(new { balance = balance, currency = "UAH"});
         }
 
         [HttpPost("deposit")]
         public async Task<IActionResult> Deposit([FromBody] DepositRequest request)
         {
-            bool isSuccess = await _atmService.DepositCashAsync(request.CardId, request.Banknotes);
+            bool isSuccess = await _atmService.DepositCashAsync(request.CardId, request.Banknotes, request.PinHash);
 
             if (isSuccess)
             {

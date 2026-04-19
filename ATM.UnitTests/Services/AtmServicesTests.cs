@@ -142,5 +142,56 @@ namespace ATM.UnitTests.Services
             var ex = await Assert.ThrowsAsync<Exception>(() => _service.WithdrawCashAsync(cardId, "1234", 500));
             Assert.Equal("Недостатньо коштів в банкоматі", ex.Message);
         }
+
+        [Fact]
+        public async Task GetBalanceAsync_ShouldReturnCorrectBalance_WhenPinIsValid()
+        {
+            var cardId = Guid.NewGuid();
+            var accountId = Guid.NewGuid();
+            var card = new Card { Id = cardId, AccountId = accountId, PinHash = "hashed_pin" };
+            var account = new Account { Id = accountId, Balance = 1234.56m };
+
+            _cardRepoMock.Setup(r => r.GetByCardByIdAsync(cardId)).ReturnsAsync(card);
+            _passwordHasherRepoMock.Setup(h => h.VerifyPassword("1234", "hashed_pin")).Returns(true);
+            _accountRepoMock.Setup(r => r.GetAccountByIdAsync(accountId)).ReturnsAsync(account);
+
+            var result = await _service.GetBalanceAsync(cardId, "1234");
+
+            Assert.Equal(1234.56m, result);
+        }
+
+        [Fact]
+        public async Task DepositAsync_ShouldIncreaseBalance_AndCreateTransaction()
+        {
+            var cardId = Guid.NewGuid();
+            var accountId = Guid.NewGuid();
+            var card = new Card { Id = cardId, AccountId = accountId, PinHash = "hashed_pin" };
+            var account = new Account { Id = accountId, Balance = 100m };
+            var depositedBanknotes = new Dictionary<int, int>
+            {
+                { 200, 2 },
+                { 100, 1 }
+            };
+            decimal expectedDepositAmount = 500m;
+
+            var cassettes = new List<AtmCassette>
+            {
+                new AtmCassette { Denomination = 200, Count = 10 },
+                new AtmCassette { Denomination = 100, Count = 10 }
+            };
+            _cassettesRepoMock.Setup(r => r.GetAllAsync()).ReturnsAsync(cassettes);
+
+            _cardRepoMock.Setup(r => r.GetByCardByIdAsync(cardId)).ReturnsAsync(card);
+            _passwordHasherRepoMock.Setup(h => h.VerifyPassword("1234", "hashed_pin")).Returns(true);
+            _accountRepoMock.Setup(r => r.GetAccountByIdAsync(accountId)).ReturnsAsync(account);
+
+            await _service.DepositCashAsync(cardId,  depositedBanknotes, "1234");
+
+            Assert.Equal(600m, account.Balance); 
+            _accountRepoMock.Verify(r => r.UpdateAsync(account), Times.Once);
+            _transactionRepoMock.Verify(r => r.AddAsync(It.Is<Transaction>(t => t.Amount == expectedDepositAmount)), Times.Once);
+
+            _cassettesRepoMock.Verify(r => r.UpdateAsync(It.IsAny<AtmCassette>()), Times.Exactly(2));
+        }
     }
 }
