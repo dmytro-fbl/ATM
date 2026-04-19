@@ -86,12 +86,20 @@ namespace ATM.Infrastructure.Services
             return true;
         }
 
-        public async Task<bool> DepositCashAsync(Guid cardId, Dictionary<int, int> banknotes)
+        public async Task<bool> DepositCashAsync(Guid cardId, Dictionary<int, int> banknotes, string pin)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
 
             try
             {
+                var card = await GetCardAsync(cardId);
+                var account = await GetAccountAsync(card.AccountId);
+
+                if (!_passwordHasher.VerifyPassword(pin, card.PinHash))
+                {
+                    await LogWarningAsync("невірний ПІН-код карти при ствробі зняття", cardId);
+                    throw new Exception("невірний ПІН-код");
+                }
                 decimal totalDepositAmount = 0;
                 foreach (var note in banknotes)
                 {
@@ -108,9 +116,6 @@ namespace ATM.Infrastructure.Services
                     await LogInfoAsync("Сума поповнення має бути більшою за нуль", cardId);
                     throw new Exception("Сума поповнення має бути більшою за нуль.");
                 }
-
-                var card = await GetCardAsync(cardId);
-                var account = await GetAccountAsync(card.AccountId);
 
                 var cassettes = await _cassetteRepo.GetAllAsync();
 
@@ -157,12 +162,18 @@ namespace ATM.Infrastructure.Services
             }
         }
 
-        public async Task<decimal> GetBalanceAsync(Guid cardId)
+        public async Task<decimal> GetBalanceAsync(Guid cardId, string pin)
         {
             try
             {
                 var card = await GetCardAsync(cardId);
                 var account = await GetAccountAsync(card.AccountId);
+
+                if (!_passwordHasher.VerifyPassword(pin, card.PinHash))
+                {
+                    await LogWarningAsync("невірний ПІН-код карти при спробі зняття", cardId);
+                    throw new Exception("невірний ПІН-код");
+                }
 
                 await LogInfoAsync("Огляд рахунку", cardId);
                 return account.Balance;
@@ -190,7 +201,7 @@ namespace ATM.Infrastructure.Services
 
                 if (!_passwordHasher.VerifyPassword(pin, card.PinHash))
                 {
-                    await LogWarningAsync("невірний ПІн-код карти при ствробі зняття", cardId);
+                    await LogWarningAsync("невірний ПІН-код карти при спробі зняття", cardId);
                     throw new Exception("невірний ПІН-код");
                 }
 

@@ -10,10 +10,10 @@ namespace ATM.Domain.Interfaces.Services
     {
         Task<bool> AuthenticateAsync(string cardNumber, string pin);
 
-        Task<decimal> GetBalanceAsync(Guid cardId);
+        Task<decimal> GetBalanceAsync(Guid cardId, string pin);
 
         Task<bool> WithdrawCashAsync(Guid cardId, string pin, decimal amount);
 
-        Task<bool> DepositCashAsync(Guid cardId, Dictionary<int, int> banknotes);
+        Task<bool> DepositCashAsync(Guid cardId, Dictionary<int, int> banknotes, string pin);
     }
 }
