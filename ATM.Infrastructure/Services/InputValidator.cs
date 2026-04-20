@@ -31,7 +31,7 @@ namespace ATM.Infrastructure.Services
 
         public bool IsValidPin(string pin)
         {
-            if (!string.IsNullOrWhiteSpace(pin) || pin.Length != 4 || !pin.All(char.IsDigit))
+            if (string.IsNullOrWhiteSpace(pin) || pin.Length != 4 || !pin.All(char.IsDigit))
                 return false;
             string[] weakPin = { "0000", "1111", "2222", "3333", "4444",
                 "5555", "6666", "7777", "8888", "9999", "1234", "4321" };
