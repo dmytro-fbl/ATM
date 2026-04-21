@@ -4,6 +4,6 @@
     {
         public Guid CardId { get; set; }
         public decimal Amount { get; set; }
-        public string PinHash { get; set; }
+        public string Pin { get; set; }
     }
 }
