@@ -38,7 +38,7 @@ namespace ATM.Infrastructure.Data
             {
                 Id = Guid.NewGuid(),
                 AccountId = accountId,
-                CardNumber = "1234567891011121",
+                CardNumber = "4444555566667770",
                 PinHash = passwordHasher.HashPassword("4422")
             };
 

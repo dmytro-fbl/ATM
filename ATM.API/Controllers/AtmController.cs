@@ -1,6 +1,7 @@
 ﻿using ATM.API.DTOs;
 using ATM.Domain.Interfaces;
 using ATM.Domain.Interfaces.Services;
+using ATM.Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ATM.API.Controllers
@@ -12,12 +13,14 @@ namespace ATM.API.Controllers
         private readonly IAtmService _atmService;
         private readonly ICardRepository _cardRepo;
         private readonly ITransactionRepository _transactionRepo;
+        private readonly InputValidator _inputValidator;
 
-        public AtmController(IAtmService atmService, ICardRepository cardRepo, ITransactionRepository transactionRepo)
+        public AtmController(IAtmService atmService, ICardRepository cardRepo, ITransactionRepository transactionRepo, InputValidator inputValidator)
         {
             _atmService = atmService;
             _cardRepo = cardRepo;
             _transactionRepo = transactionRepo;
+            _inputValidator = inputValidator;
         }
 
         [HttpPost("login")]
@@ -40,6 +43,8 @@ namespace ATM.API.Controllers
         {
             try
             {
+                //if(!_inputValidator.IsValidWithdrawalAmount(request.Amount))
+                //    return BadRequest(new { message = "Перевищено ліміт зняття за одну операцію (макс. 20 000 USD)" });
                 bool isSuccess = await _atmService.WithdrawCashAsync(request.CardId, request.Pin, request.Amount);
                 return Ok(new { message = "Гроші видано" });
 
