@@ -49,6 +49,7 @@
                 if (response.ok) {
                     sessionStorage.setItem('atm_cardNumber', cardInput);
                     sessionStorage.setItem('atm_pin', pinInput);
+                    sessionStorage.setItem('atm_cardId', data.cardId);
 
                     window.location.href = '/Home/Menu';
                 } else {

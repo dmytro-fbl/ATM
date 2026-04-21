@@ -45,5 +45,19 @@ namespace ATM.Infrastructure.Repositories
                 .Take(count)
                 .ToListAsync(); 
         }
+
+        public async Task<(IEnumerable<Transaction> Items, int TotalCount)> GetPaginatedByAccountIdAsync(Guid accountId, int page, int pageSize)
+        {
+            var query = _context.Transactions.Where(t => t.AccountId == accountId);
+
+            var totalCount = await query.CountAsync();
+            var items = await query
+                .OrderByDescending(t => t.TransactionDate)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (items, totalCount);
+        }
     }
 }

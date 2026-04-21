@@ -18,7 +18,20 @@ namespace ATM.API.Controllers
             return View();
         }
 
-        public IActionResult Privacy()
+        public IActionResult Menu()
+        {
+            return View();
+        }
+        
+        public IActionResult Withdraw()
+        {
+            return View();
+        }
+        public IActionResult Deposit()
+        {
+            return View();
+        }
+        public IActionResult History()
         {
             return View();
         }

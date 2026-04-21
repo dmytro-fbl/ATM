@@ -267,6 +267,13 @@ namespace ATM.Infrastructure.Services
             return account;
         }
 
+        public async Task<(IEnumerable<Transaction> Items, int TotalCount)> GetTransactionsAsync(Guid cardId, int page, int pageSize)
+        {
+            var card = await GetCardAsync(cardId);
+
+            return await _transactionRepo.GetPaginatedByAccountIdAsync(card.AccountId, page, pageSize);
+        }
+
         
     }
 }
