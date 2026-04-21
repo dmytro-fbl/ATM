@@ -1,0 +1,53 @@
+﻿@{ ViewData["Title"] = "Зняття готівки";}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow border-0 bg-dark text-white rounded-4">
+                <div class="card-header border-secondary py-3 text-center">
+                    <h4 class="text-warning"><i class="bi bi-cash-stack"></i> Зняття коштів</h4>
+                </div>
+                <div class="card-body p-4">
+                    <label class="form-label">Виберіть або введіть суму:</label>
+                    <div class="row g-2 mb-4">
+                        <div class="col-6"><button class="btn btn-outline-light w-100 py-3" onclick="setAmount(200)">200</button></div>
+                        <div class="col-6"><button class="btn btn-outline-light w-100 py-3" onclick="setAmount(500)">500</button></div>
+                        <div class="col-6"><button class="btn btn-outline-light w-100 py-3" onclick="setAmount(1000)">1000</button></div>
+                        <div class="col-6"><button class="btn btn-outline-light w-100 py-3" onclick="setAmount(2000)">2000</button></div>
+                    </div>
+
+                    <input type="number" id="withdrawAmount" class="form-control form-control-lg bg-secondary text-white border-0 text-center mb-4" placeholder="Інша сума">
+
+                    <button class="btn btn-warning w-100 py-3 fw-bold shadow" onclick="processWithdraw()">ПІДТВЕРДИТИ ЗНЯТТЯ</button>
+                    <button class="btn btn-link w-100 text-secondary mt-3" onclick="location.href='/Home/Menu'">Скасувати</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function setAmount(val) { document.getElementById('withdrawAmount').value = val; }
+
+    async function processWithdraw() {
+        const amount = document.getElementById('withdrawAmount').value;
+        const cardId = sessionStorage.getItem('atm_cardId');
+        const pin = sessionStorage.getItem('atm_pin');
+
+        if (!amount || amount <= 0) return alert("Введіть коректну суму");
+
+        const response = await fetch('/api/atm/withdraw', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cardId: cardId, pin: pin, amount: parseFloat(amount) })
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            alert("Гроші видано! Не забудьте забрати купюри.");
+            location.href = '/Home/Menu';
+        } else {
+            alert("Помилка: " + data.message);
+        }
+    }
+</script>

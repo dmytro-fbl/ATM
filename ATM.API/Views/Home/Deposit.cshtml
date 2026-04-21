@@ -1,0 +1,61 @@
+﻿@{
+    ViewData["Title"] = "Поповнення";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow border-0 bg-dark text-white rounded-4">
+                <div class="card-header border-secondary py-3 text-center">
+                    <h4 class="text-success"><i class="bi bi-box-arrow-in-down"></i> Поповнення</h4>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-center text-secondary mb-4">Внесіть купюри в приймач:</p>
+                    <div id="banknoteInputs">
+                        <div class="input-group mb-3">
+                            <span class="input-group-text bg-secondary text-white border-0 w-25">1000</span>
+                            <input type="number" class="form-control bg-dark text-white border-secondary" data-denom="1000" value="0">
+                        </div>
+                        <div class="input-group mb-3">
+                            <span class="input-group-text bg-secondary text-white border-0 w-25">500</span>
+                            <input type="number" class="form-control bg-dark text-white border-secondary" data-denom="500" value="0">
+                        </div>
+                        <div class="input-group mb-3">
+                            <span class="input-group-text bg-secondary text-white border-0 w-25">200</span>
+                            <input type="number" class="form-control bg-dark text-white border-secondary" data-denom="200" value="0">
+                        </div>
+                    </div>
+                    <button class="btn btn-success w-100 py-3 mt-4 shadow" onclick="processDeposit()">ВНЕСТИ ГРОШІ</button>
+                    <button class="btn btn-link w-100 text-secondary mt-2" onclick="location.href='/Home/Menu'">Назад</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function processDeposit() {
+        const cardId = sessionStorage.getItem('atm_cardId');
+        const pin = sessionStorage.getItem('atm_pin');
+
+        const banknotes = {};
+        document.querySelectorAll('#banknoteInputs input').forEach(input => {
+            const count = parseInt(input.value);
+            if (count > 0) banknotes[input.getAttribute('data-denom')] = count;
+        });
+
+        const response = await fetch('/api/atm/deposit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cardId: cardId, pin: pin, banknotes: banknotes })
+        });
+
+        if (response.ok) {
+            alert("Рахунок успішно поповнено!");
+            location.href = '/Home/Menu';
+        } else {
+            const data = await response.json();
+            alert("Помилка: " + data.message);
+        }
+    }
+</script>

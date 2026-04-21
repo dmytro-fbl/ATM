@@ -70,13 +70,12 @@
 
 @section Scripts {
     <script>
-        // Ініціалізація даних при завантаженні
         document.addEventListener('DOMContentLoaded', () => {
             const cardNum = sessionStorage.getItem('atm_cardNumber');
             if (cardNum) {
                 document.getElementById('cardDisplay').textContent = `CARD: **** ${cardNum.slice(-4)}`;
             } else {
-                window.location.href = '/Home/Index'; // Якщо даних немає - на логін
+                window.location.href = '/Home/Index'; 
             }
         });
 
