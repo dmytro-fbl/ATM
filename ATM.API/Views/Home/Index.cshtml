@@ -1,8 +1,64 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+	ViewData["Title"] = "Вхід в банкомат";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="container mt-5">
+	<div class="row justify-content-center">
+		<div class="col-md-5">
+			<div class="card shadow-lg border-0">
+				<div class="card-header bg-primary text-while text-center py-3">
+					<h4 class="mb-0">Банкомат</h4>
+				</div>
+				<div class="card-body bg-light"> 
+					<form id="loginForm">
+						<div class="mb-3">
+							<label class="form-label fw-bold">Номер картки</label>
+							<input type="text" id="cardNumber" class="form-control text-center fs-4 font-monospace" placeholder="1234567812345678" maxlength="16" required />
+						</div>
+						<div class="mb-4">
+							<label class="form-label fw-bold">ПІН-код</label>
+							<input type="password" id="pin" class="form-control text-center fs-2 font-monospace" placeholder="****" maxlength="4" required>
+						</div>
+						<button type="submit" class="btn btn-success w-100 fs-5 py-2">Вставити картку</button>
+						<div id="errorMessage" class="alert alert-danger mt-3 d-none text-center"></div>
+					</form>
+				</div>
+			</div>
+		</div>
+	</div>
 </div>
+
+@section Scripts {
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault(); 
+
+            const cardInput = document.getElementById('cardNumber').value;
+            const pinInput = document.getElementById('pin').value;
+            const errorBox = document.getElementById('errorMessage');
+
+            try {
+                const response = await fetch('/api/atm/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cardNumber: cardInput, pin: pinInput })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    sessionStorage.setItem('atm_cardNumber', cardInput);
+                    sessionStorage.setItem('atm_pin', pinInput);
+
+                    window.location.href = '/Home/Menu';
+                } else {
+                    errorBox.textContent = data.message || "Помилка авторизації";
+                    errorBox.classList.remove('d-none');
+                }
+            } catch (error) {
+                errorBox.textContent = "Помилка з'єднання з сервером";
+                errorBox.classList.remove('d-none');
+            }
+        });
+    </script>
+}
