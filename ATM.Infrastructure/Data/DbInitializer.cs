@@ -39,8 +39,18 @@ namespace ATM.Infrastructure.Data
                 Id = Guid.NewGuid(),
                 AccountId = accountId,
                 CardNumber = "1234567891011121",
-                PinHash = passwordHasher.HashPassword("1234")
+                PinHash = passwordHasher.HashPassword("4422")
             };
+
+            Card receiverCard = new Card
+            {
+                Id = Guid.NewGuid(),
+                AccountId = accountId, 
+                CardNumber = "4444333322221111",
+                PinHash = passwordHasher.HashPassword("2244")
+            };
+
+            await context.Cards.AddAsync(receiverCard);
 
             AtmCassette AtmCassette_1000 = new AtmCassette
             {
