@@ -17,6 +17,7 @@ namespace ATM.Infrastructure.Data
                 return;
             var userId = Guid.NewGuid();
             var accountId = Guid.NewGuid();
+            
 
             User testUser = new User
             {
@@ -25,6 +26,8 @@ namespace ATM.Infrastructure.Data
                 LastName = "Руденко",
                 PhoneNumber = "0688600206"
             };
+
+            
 
             Account testAccount = new Account
             {
@@ -48,6 +51,33 @@ namespace ATM.Infrastructure.Data
                 AccountId = accountId, 
                 CardNumber = "4444333322221111",
                 PinHash = passwordHasher.HashPassword("2244")
+            };
+
+            
+
+            var adminUser = new User
+            {
+                Id = Guid.NewGuid(),
+                FirstName = "admin",
+                LastName = "admin",
+                PhoneNumber = "0000000000"
+            };
+
+            var adminAccount = new Account
+            {
+                Id = Guid.NewGuid(),
+                UserId = adminUser.Id,
+                Balance = 0,
+                Currency = "USD"
+            };
+
+            var adminCard = new Card
+            {
+                Id = Guid.NewGuid(),
+                CardNumber = "0000000000000000",
+                PinHash = passwordHasher.HashPassword("9999"),
+                AccountId = adminAccount.Id,
+                IsAdmin = true
             };
 
             await context.Cards.AddAsync(receiverCard);
@@ -83,6 +113,10 @@ namespace ATM.Infrastructure.Data
             await context.Accounts.AddAsync(testAccount);
             await context.Cards.AddAsync(testCard);
             await context.AtmCassettes.AddRangeAsync(listCassette);
+
+            await context.Users.AddAsync(adminUser);
+            await context.Accounts.AddAsync(adminAccount);
+            await context.Cards.AddAsync(adminCard);
 
             await context.SaveChangesAsync();
         }
