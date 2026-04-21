@@ -267,6 +267,12 @@ namespace ATM.Infrastructure.Services
             return account;
         }
 
-        
+        public async Task<IEnumerable<Transaction>> GetTransactionsAsync(Guid cardId)
+        {
+            var card = await GetCardAsync(cardId);
+            
+            var transaction = await _transactionRepo.GetByAccountIdAsync(card.AccountId);
+            return transaction;
+        }
     }
 }

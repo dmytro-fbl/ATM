@@ -11,11 +11,13 @@ namespace ATM.API.Controllers
     {
         private readonly IAtmService _atmService;
         private readonly ICardRepository _cardRepo;
+        private readonly ITransactionRepository _transactionRepo;
 
-        public AtmController(IAtmService atmService, ICardRepository cardRepo)
+        public AtmController(IAtmService atmService, ICardRepository cardRepo, ITransactionRepository transactionRepo)
         {
             _atmService = atmService;
             _cardRepo = cardRepo;
+            _transactionRepo = transactionRepo;
         }
 
         [HttpPost("login")]
@@ -68,5 +70,29 @@ namespace ATM.API.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+
+        [HttpGet("history/{cardId}")]
+        public async Task<IActionResult> GetHistory(Guid cardId)
+        {
+            try
+            {
+                var transactions = await _atmService.GetTransactionsAsync(cardId);
+
+                var result = transactions.OrderByDescending(t => t.TransactionDate)
+                    .Select(t => new
+                    {
+                        date = t.TransactionDate.ToString("dd.MM.yy HH:mm"),
+                        type = t.TransactionType,
+                        amount = t.Amount,
+                        status = t.Status
+                    });
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+               return BadRequest(new {message =  ex.Message});
+            }
+        }
+
     }
 }
