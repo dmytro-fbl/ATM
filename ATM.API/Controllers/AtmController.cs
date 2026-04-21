@@ -72,21 +72,27 @@ namespace ATM.API.Controllers
         }
 
         [HttpGet("history/{cardId}")]
-        public async Task<IActionResult> GetHistory(Guid cardId)
+        public async Task<IActionResult> GetHistory(Guid cardId, [FromQuery] int page = 1)
         {
             try
             {
-                var transactions = await _atmService.GetTransactionsAsync(cardId);
+                int pageSize = 10;
+                var (item, totalCount) = await _atmService.GetTransactionsAsync(cardId, page, pageSize);
 
-                var result = transactions.OrderByDescending(t => t.TransactionDate)
-                    .Select(t => new
-                    {
-                        date = t.TransactionDate.ToString("dd.MM.yy HH:mm"),
-                        type = t.TransactionType,
-                        amount = t.Amount,
-                        status = t.Status
-                    });
-                return Ok(result);
+                var result = item.Select(t => new
+                {
+                    date = t.TransactionDate.ToString("dd.MM.yyyy HH:mm"),
+                    type = t.TransactionType.ToString(),
+                    amount = t.Amount
+                });
+
+                int totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+                return Ok(new
+                {
+                    transactions = result,
+                    totalPages = totalPages,
+                    currentPage = page
+                });
             }
             catch (Exception ex)
             {

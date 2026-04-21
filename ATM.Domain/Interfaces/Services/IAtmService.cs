@@ -17,6 +17,6 @@ namespace ATM.Domain.Interfaces.Services
 
         Task<bool> DepositCashAsync(Guid cardId, Dictionary<int, int> banknotes, string pin);
 
-        Task<IEnumerable<Transaction>> GetTransactionsAsync(Guid cardId);
+        Task<(IEnumerable<Transaction> Items, int TotalCount)> GetTransactionsAsync(Guid cardId, int page, int pageSize);
     }
 }

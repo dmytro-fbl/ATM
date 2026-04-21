@@ -14,10 +14,11 @@
                         </button>
                     </div>
                 </div>
+
                 <div class="card-body p-0">
-                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <div class="table-responsive" style="min-height: 300px;">
                         <table class="table table-dark table-hover table-striped mb-0">
-                            <thead class="position-sticky top-0 bg-dark" style="z-index: 1;">
+                            <thead class="bg-dark">
                                 <tr>
                                     <th class="ps-4 text-secondary">Дата та час</th>
                                     <th class="text-secondary">Тип операції</th>
@@ -26,15 +27,26 @@
                             </thead>
                             <tbody id="historyTableBody">
                                 <tr>
-                                    <td colspan="3" class="text-center py-4 text-secondary">
-                                        <div class="spinner-border text-info" role="status"></div>
-                                        <p class="mt-2 mb-0">Завантаження історії...</p>
+                                    <td colspan="3" class="text-center py-5 text-secondary">
+                                        <div class="spinner-border text-info mb-2" role="status"></div>
+                                        <p class="mb-0">Завантаження історії...</p>
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
+
+                <div class="card-footer border-secondary d-flex justify-content-between align-items-center bg-dark p-3 rounded-bottom-4">
+                    <button id="prevPage" class="btn btn-outline-info btn-sm px-3" onclick="changePage(-1)" disabled>
+                        <i class="bi bi-chevron-left"></i> Назад
+                    </button>
+                    <span id="pageInfo" class="text-secondary small font-monospace">Сторінка 1 з 1</span>
+                    <button id="nextPage" class="btn btn-outline-info btn-sm px-3" onclick="changePage(1)" disabled>
+                        Вперед <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+
             </div>
         </div>
     </div>
@@ -42,9 +54,12 @@
 
 @section Scripts {
     <script>
-        document.addEventListener('DOMContentLoaded', loadHistory);
+        let currentPage = 1;
+        let totalPages = 1;
 
-        async function loadHistory() {
+        document.addEventListener('DOMContentLoaded', () => loadHistory(1));
+
+        async function loadHistory(page) {
             const cardId = sessionStorage.getItem('atm_cardId');
             const tbody = document.getElementById('historyTableBody');
 
@@ -54,44 +69,68 @@
             }
 
             try {
-                const response = await fetch(`/api/atm/history/${cardId}`);
+                const response = await fetch(`/api/atm/history/${cardId}?page=${page}`);
 
                 if (response.ok) {
-                    const transactions = await response.json();
+                    const data = await response.json();
 
-                    if (transactions.length === 0) {
-                        tbody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-secondary">Історія операцій порожня.</td></tr>`;
-                        return;
-                    }
+                    currentPage = data.currentPage;
+                    totalPages = data.totalPages;
 
-                    tbody.innerHTML = transactions.map(tr => {
-
-                        const isIncome = tr.type === 'Deposit' || tr.type === 'Поповнення' || tr.amount > 0;
-                        const sign = isIncome ? '+' : '-';
-                        const colorClass = isIncome ? 'text-success' : 'text-danger';
-                        const badgeClass = isIncome ? 'bg-success' : 'bg-danger';
-
-                        const typeName = translateType(tr.type);
-
-                        return `
-                            <tr>
-                                <td class="ps-4 align-middle font-monospace small">${tr.date}</td>
-                                <td class="align-middle">
-                                    <span class="badge ${badgeClass} bg-opacity-25 ${colorClass} border border-${isIncome ? 'success' : 'danger'}">
-                                        ${typeName}
-                                    </span>
-                                </td>
-                                <td class="text-end pe-4 align-middle fs-5 font-monospace fw-bold ${colorClass}">
-                                    ${sign}${Math.abs(tr.amount).toFixed(2)} USD
-                                </td>
-                            </tr>
-                        `;
-                    }).join('');
+                    renderTable(data.transactions);
+                    updatePaginationControls();
                 } else {
                     tbody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-danger">Не вдалося завантажити історію.</td></tr>`;
                 }
             } catch (error) {
                 tbody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-danger">Помилка з'єднання з сервером.</td></tr>`;
+            }
+        }
+
+        function renderTable(transactions) {
+            const tbody = document.getElementById('historyTableBody');
+
+            if (!transactions || transactions.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="text-center py-5 text-secondary">Історія операцій порожня.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = transactions.map(tr => {
+                const isIncome = tr.type === 'Deposit' || tr.type === 'Поповнення' || tr.amount > 0;
+                const sign = isIncome ? '+' : '-';
+                const colorClass = isIncome ? 'text-success' : 'text-danger';
+                const badgeClass = isIncome ? 'bg-success' : 'bg-danger';
+                const typeName = translateType(tr.type);
+
+                return `
+                    <tr>
+                        <td class="ps-4 align-middle font-monospace small text-light">${tr.date}</td>
+                        <td class="align-middle">
+                            <span class="badge ${badgeClass} bg-opacity-25 ${colorClass} border border-${isIncome ? 'success' : 'danger'}">
+                                ${typeName}
+                            </span>
+                        </td>
+                        <td class="text-end pe-4 align-middle fs-5 font-monospace fw-bold ${colorClass}">
+                            ${sign}${Math.abs(tr.amount).toFixed(2)} USD
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updatePaginationControls() {
+            const pageText = totalPages > 0 ? `Сторінка ${currentPage} з ${totalPages}` : 'Немає даних';
+            document.getElementById('pageInfo').textContent = pageText;
+
+            document.getElementById('prevPage').disabled = (currentPage <= 1);
+
+            document.getElementById('nextPage').disabled = (currentPage >= totalPages || totalPages === 0);
+        }
+
+        function changePage(step) {
+            const newPage = currentPage + step;
+            if (newPage >= 1 && newPage <= totalPages) {
+                loadHistory(newPage);
             }
         }
 
@@ -101,7 +140,7 @@
                 'Withdraw': 'Зняття готівки',
                 'Transfer': 'Переказ'
             };
-            return types[type] || type; 
+            return types[type] || type;
         }
     </script>
 }

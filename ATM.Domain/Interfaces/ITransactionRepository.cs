@@ -17,5 +17,7 @@ namespace ATM.Domain.Interfaces
         Task<IEnumerable<Transaction>> GetByAccountIdAsync(Guid accountId);
 
         Task<IEnumerable<Transaction>> GetRecentTransactionAsync(Guid accountId, int count);
+
+        Task<(IEnumerable<Transaction> Items, int TotalCount)> GetPaginatedByAccountIdAsync(Guid accountId, int page, int pageSize);
     }
 }
