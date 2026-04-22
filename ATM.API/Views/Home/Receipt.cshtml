@@ -1,0 +1,40 @@
+﻿@{
+    ViewData["Title"] = "Друк чека";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-5 text-center">
+
+            <div class="bg-white text-dark border border-2 border-secondary-subtle rounded-1 shadow p-4 mb-4 font-monospace text-start">
+                <pre id="receiptContent" class="mb-0" style="white-space: pre-wrap; word-wrap: break-word; font-size: 14px; line-height: 1.2;"></pre>
+            </div>
+
+            <div class="d-flex justify-content-center gap-3 d-print-none">
+                <button class="btn btn-success px-4 fw-bold shadow-sm" onclick="window.print()">
+                    <i class="bi bi-printer"></i> ДРУКУВАТИ
+                </button>
+                <button class="btn btn-outline-secondary px-4 fw-bold shadow-sm" onclick="location.href='/Home/Menu'">
+                    <i class="bi bi-x-circle"></i> СКАСУВАТИ
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Дістаємо чек із сесії
+        const receiptText = sessionStorage.getItem('last_receipt');
+
+        if (!receiptText) {
+            alert("Чек не знайдено");
+            location.href = '/Home/Menu';
+            return;
+        }
+
+        // Вставляємо текст у чек
+        document.getElementById('receiptContent').textContent = receiptText;
+    });
+</script>
