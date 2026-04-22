@@ -32,7 +32,8 @@ namespace ATM.API.Controllers
             bool isSuccess = await _atmService.AuthenticateAsync(request.CardNumber, request.Pin);
 
             if (isSuccess)
-                return Ok(new {message = "Успішний вхід", isAuthentificated = true, cardId = card.Id});
+                return Ok(new {message = "Успішний вхід", isAuthentificated = true,
+                    cardId = card.Id, isAdmin = card.IsAdmin});
             
             return Unauthorized(new { message = "невірний номер картки або ПІН-код" });
             
@@ -43,8 +44,8 @@ namespace ATM.API.Controllers
         {
             try
             {
-                //if(!_inputValidator.IsValidWithdrawalAmount(request.Amount))
-                //    return BadRequest(new { message = "Перевищено ліміт зняття за одну операцію (макс. 20 000 USD)" });
+                if (!_inputValidator.IsValidWithdrawalAmount(request.Amount))
+                    return BadRequest(new { message = "Перевищено ліміт зняття за одну операцію (макс. 20 000 USD)" });
                 bool isSuccess = await _atmService.WithdrawCashAsync(request.CardId, request.Pin, request.Amount);
                 return Ok(new { message = "Гроші видано" });
 
@@ -104,6 +105,8 @@ namespace ATM.API.Controllers
                return BadRequest(new {message =  ex.Message});
             }
         }
+
+
 
     }
 }
