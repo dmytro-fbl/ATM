@@ -1,0 +1,190 @@
+﻿@{
+    ViewData["Title"] = "Термінал Адміністратора";
+}
+
+<div class="container mt-4 font-monospace admin-panel">
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center border-bottom border-success pb-3">
+            <h2 class="text-success mb-0">
+                <i class="bi bi-terminal-fill"></i> SYSTEM.ADMIN_PANEL
+            </h2>
+            <button class="btn btn-outline-danger" onclick="logout()">
+                <i class="bi bi-power"></i> ЗАВЕРШИТИ СЕАНС
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card bg-dark border-success mb-4 shadow-lg">
+                <div class="card-header bg-black text-success border-success">
+                    <i class="bi bi-hdd-network"></i> МОДУЛЬ ДИСПЕНСЕРА (КАСЕТИ)
+                </div>
+                <div class="card-body bg-black text-light" id="cassettesContainer">
+                    <div class="text-center text-success py-5">
+                        <div class="spinner-border" role="status"></div>
+                        <p class="mt-2">З'єднання з модулем видачі...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card bg-dark border-success shadow-lg sticky-top" style="top: 20px;">
+                <div class="card-header bg-black text-success border-success">
+                    <i class="bi bi-cpu"></i> СТАТУС СИСТЕМИ
+                </div>
+                <div class="card-body bg-black text-light">
+                    <p class="mb-1 text-secondary small">ЗАГАЛЬНИЙ БАЛАНС БАНКОМАТА:</p>
+                    <h2 class="text-success mb-4 fw-bold" id="totalAtmBalance">0 USD</h2>
+
+                    <hr class="border-secondary">
+
+                    <p class="mb-2 text-secondary small">АПАРАТНІ МОДУЛІ:</p>
+                    <ul class="list-unstyled">
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success"></i> Мережа (API): Активно</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success"></i> База даних (SQL): ОК</li>
+                        <li class="mb-2"><i class="bi bi-check-circle-fill text-success"></i> Механізм видачі: Готовий</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // 1. ЗАХИСТ МАРШРУТУ: Перевіряємо, чи є ID карти в сесії
+        const currentCardId = sessionStorage.getItem('atm_cardId');
+        if (!currentCardId) {
+            window.location.href = '/Home/Index'; // Викидаємо нелегалів на логін
+        }
+
+        // Максимальна місткість однієї касети
+        const MAX_CAPACITY = 500;
+
+        // Завантажуємо дані при старті сторінки
+        document.addEventListener('DOMContentLoaded', loadCassettes);
+
+        // 2. ОТРИМАННЯ ДАНИХ (READ)
+        async function loadCassettes() {
+            const container = document.getElementById('cassettesContainer');
+
+            try {
+                const response = await fetch('/api/admin/cassettes');
+                if (response.ok) {
+                    const cassettes = await response.json();
+                    renderCassettes(cassettes);
+                } else {
+                    container.innerHTML = '<div class="alert alert-danger rounded-0">Помилка доступу до бази даних.</div>';
+                }
+            } catch (error) {
+                container.innerHTML = '<div class="alert alert-danger rounded-0">Втрачено зв\'язок із сервером.</div>';
+            }
+        }
+
+        // 3. ВІДМАЛЬОВУВАННЯ ІНТЕРФЕЙСУ
+        function renderCassettes(cassettes) {
+            const container = document.getElementById('cassettesContainer');
+            const totalBalanceElement = document.getElementById('totalAtmBalance');
+
+            let html = '';
+            let totalAtmBalance = 0;
+
+            cassettes.forEach(c => {
+                const cassetteTotal = c.denomination * c.count;
+                totalAtmBalance += cassetteTotal;
+
+                const percent = Math.round((c.count / MAX_CAPACITY) * 100);
+                const barColor = percent < 10 ? 'bg-danger' : (percent < 30 ? 'bg-warning' : 'bg-success');
+
+                html += `
+                    <div class="mb-4 p-3 border border-secondary rounded" style="background-color: #0a0a0a;">
+                        <div class="d-flex justify-content-between mb-2 align-items-end">
+                            <span class="text-success fw-bold fs-5">НОМІНАЛ: ${c.denomination} USD</span>
+                            <span class="text-light">Залишок: <span class="fs-5 fw-bold">${c.count}</span> шт.</span>
+                        </div>
+
+                        <div class="progress mb-3" style="height: 25px; background-color: #1a1a1a; border: 1px solid #198754;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated ${barColor}"
+                                 role="progressbar" style="width: ${percent}%;">
+                                ${percent}%
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center bg-dark p-2 rounded border border-secondary">
+                            <div>
+                                <small class="text-secondary d-block">Сума в касеті:</small>
+                                <strong class="text-light">${cassetteTotal.toLocaleString()} USD</strong>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <input type="number" id="input-${c.denomination}"
+                                       class="form-control form-control-sm bg-black text-success border-success font-monospace"
+                                       style="width: 100px;"
+                                       value="${0}" min="0" max="1000">
+
+                                <button class="btn btn-outline-success btn-sm fw-bold"
+                                        onclick="refillCassette(${c.denomination})">
+                                    <i class="bi bi-arrow-repeat"></i> ОНОВИТИ
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            totalBalanceElement.textContent = totalAtmBalance.toLocaleString() + ' USD';
+        }
+
+        // 4. ІНКАСАЦІЯ (UPDATE) - Відправка DTO
+        async function refillCassette(denomination) {
+            const inputElement = document.getElementById(`input-${denomination}`);
+            const newCount = parseInt(inputElement.value);
+
+            if (isNaN(newCount) || newCount < 0) {
+                alert("Введіть коректну кількість купюр!");
+                return;
+            }
+
+            try {
+                // Відправляємо POST запит з DTO об'єктом
+                const response = await fetch('/api/admin/refill', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        denomination: denomination,
+                        newCount: newCount
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Якщо успішно - просто перезавантажуємо дані з БД
+                    loadCassettes();
+                } else {
+                    alert(data.message || "Помилка при оновленні касети");
+                }
+            } catch (error) {
+                alert("Помилка з'єднання з сервером");
+            }
+        }
+
+        // 5. ВИХІД
+        function logout() {
+            sessionStorage.clear();
+            window.location.href = '/Home/Index';
+        }
+    </script>
+
+    <style>
+        body { background-color: #050505 !important; }
+        .admin-panel .card { border-radius: 4px !important; }
+        .admin-panel .progress { border-radius: 2px !important; }
+        .admin-panel input[type="number"]:focus {
+            box-shadow: 0 0 5px #198754;
+            outline: none;
+        }
+    </style>
+}
