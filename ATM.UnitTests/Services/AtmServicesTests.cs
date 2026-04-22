@@ -193,5 +193,107 @@ namespace ATM.UnitTests.Services
 
             _cassettesRepoMock.Verify(r => r.UpdateAsync(It.IsAny<AtmCassette>()), Times.Exactly(2));
         }
+
+
+
+
+
+        [Fact]
+        public async Task DepositAsync_ShouldThrowException_WhenDepositAmountIsZero()
+        {
+            var cardId = Guid.NewGuid();
+            var accountId = Guid.NewGuid();
+            var card = new Card { Id = cardId, AccountId = accountId, PinHash = "hash" };
+            var account = new Account { Id = accountId, Balance = 100m };
+
+            var depositedBanknotes = new Dictionary<int, int>();
+
+            _cardRepoMock.Setup(r => r.GetByCardByIdAsync(cardId)).ReturnsAsync(card);
+            _passwordHasherRepoMock.Setup(h => h.VerifyPassword("1234", "hash")).Returns(true);
+            _accountRepoMock.Setup(r => r.GetAccountByIdAsync(accountId)).ReturnsAsync(account);
+
+            var ex = await Assert.ThrowsAsync<Exception>(() => _service.DepositCashAsync(cardId, depositedBanknotes, "1234"));
+            Assert.Equal("Сума поповнення має бути більшою за нуль.", ex.Message);
+        }
+
+        [Fact]
+        public async Task DepositAsync_ShouldThrowException_WhenDenominationIsUnsupported()
+        {
+            var cardId = Guid.NewGuid();
+            var accountId = Guid.NewGuid();
+            var card = new Card { Id = cardId, AccountId = accountId, PinHash = "hash" };
+            var account = new Account { Id = accountId, Balance = 100m };
+
+            var depositedBanknotes = new Dictionary<int, int> { { 300, 1 } };
+
+            var cassettes = new List<AtmCassette>
+            {
+                new AtmCassette { Denomination = 200, Count = 10 },
+                new AtmCassette { Denomination = 100, Count = 10 }
+            };
+
+            _cardRepoMock.Setup(r => r.GetByCardByIdAsync(cardId)).ReturnsAsync(card);
+            _passwordHasherRepoMock.Setup(h => h.VerifyPassword("1234", "hash")).Returns(true);
+            _accountRepoMock.Setup(r => r.GetAccountByIdAsync(accountId)).ReturnsAsync(account);
+            _cassettesRepoMock.Setup(r => r.GetAllAsync()).ReturnsAsync(cassettes);
+
+            var ex = await Assert.ThrowsAsync<Exception>(() => _service.DepositCashAsync(cardId, depositedBanknotes, "1234"));
+            Assert.Equal("Банкомат не приймає банкноти такого номіналу 300", ex.Message);
+        }
+
+        [Fact]
+        public async Task AuthenticateAsync_ShouldBlockCard_AfterThreeFailedAttempts()
+        {
+            var cardNumber = "1111222233334444";
+            var card = new Card { CardNumber = cardNumber, PinHash = "hash", FailedAttempts = 2, IsBlocked = false };
+
+            _cardRepoMock.Setup(r => r.GetByCardByNumberAsync(cardNumber)).ReturnsAsync(card);
+            _passwordHasherRepoMock.Setup(h => h.VerifyPassword("wrong_pin", "hash")).Returns(false); 
+
+            var ex = await Assert.ThrowsAsync<Exception>(() => _service.AuthenticateAsync(cardNumber, "wrong_pin"));
+
+            Assert.Equal("Картку заблоковано через перевищення спроб введення ПІН-коду.", ex.Message);
+            Assert.True(card.IsBlocked);
+            _cardRepoMock.Verify(r => r.UpdateAsync(It.Is<Card>(c => c.IsBlocked == true)), Times.Once);
+        }
+
+        [Fact]
+        public async Task AuthenticateAsync_ShouldResetFailedAttempts_WhenLoginIsSuccessful()
+        {
+            var cardNumber = "1111222233334444";
+            var card = new Card { CardNumber = cardNumber, PinHash = "hash", FailedAttempts = 1, IsBlocked = false };
+
+            _cardRepoMock.Setup(r => r.GetByCardByNumberAsync(cardNumber)).ReturnsAsync(card);
+            _passwordHasherRepoMock.Setup(h => h.VerifyPassword("correct_pin", "hash")).Returns(true); 
+            var result = await _service.AuthenticateAsync(cardNumber, "correct_pin");
+
+            Assert.True(result); 
+            Assert.Equal(0, card.FailedAttempts); 
+            _cardRepoMock.Verify(r => r.UpdateAsync(It.Is<Card>(c => c.FailedAttempts == 0)), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetTransactionsAsync_ShouldReturnPaginatedTransactions()
+        {
+            var cardId = Guid.NewGuid();
+            var accountId = Guid.NewGuid();
+            var card = new Card { Id = cardId, AccountId = accountId };
+
+            var transactions = new List<Transaction>
+            {
+                new Transaction { Id = Guid.NewGuid(), Amount = 100, TransactionType = "Поповнення" },
+                new Transaction { Id = Guid.NewGuid(), Amount = -50, TransactionType = "Зняття" }
+            };
+
+            _cardRepoMock.Setup(r => r.GetByCardByIdAsync(cardId)).ReturnsAsync(card);
+
+            _transactionRepoMock.Setup(r => r.GetPaginatedByAccountIdAsync(accountId, 1, 10))
+                .ReturnsAsync((transactions.AsEnumerable(), 2));
+
+            var result = await _service.GetTransactionsAsync(cardId, 1, 10);
+
+            Assert.Equal(2, result.TotalCount); 
+            Assert.Equal(2, result.Items.Count()); 
+        }
     }
 }

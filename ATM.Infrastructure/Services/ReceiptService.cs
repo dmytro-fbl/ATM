@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Globalization;
 using ATM.Domain.Interfaces.Services;
 
 namespace ATM.Infrastructure.Services
@@ -57,7 +58,7 @@ namespace ATM.Infrastructure.Services
         }
         private string FormatMoney(decimal amount, string currency)
         {
-            return $"{amount:F2} {currency}";
+            return $"{amount.ToString("F2", CultureInfo.InvariantCulture)} {currency}";
         }
 
         private string MaskCardNumber(string number)
