@@ -33,6 +33,7 @@ namespace ATM.API
             builder.Services.AddScoped<IAtmOperationLogRepository, AtmOperationLogRepository>();
             builder.Services.AddScoped<ICashWithdrawalStrategy, GreedyWithdrawalStrategy>();
             builder.Services.AddScoped<InputValidator>();
+            builder.Services.AddScoped<IReceiptService, ReceiptService>();
 
 
             // Add services to the container.
