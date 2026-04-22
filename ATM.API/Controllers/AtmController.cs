@@ -3,6 +3,7 @@ using ATM.Domain.Interfaces;
 using ATM.Domain.Interfaces.Services;
 using ATM.Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Storage.Json;
 
 namespace ATM.API.Controllers
 {
@@ -14,13 +15,15 @@ namespace ATM.API.Controllers
         private readonly ICardRepository _cardRepo;
         private readonly ITransactionRepository _transactionRepo;
         private readonly InputValidator _inputValidator;
+        private readonly IReceiptService _receiptService;
 
-        public AtmController(IAtmService atmService, ICardRepository cardRepo, ITransactionRepository transactionRepo, InputValidator inputValidator)
+        public AtmController(IAtmService atmService, ICardRepository cardRepo, ITransactionRepository transactionRepo, InputValidator inputValidator, IReceiptService receiptService)
         {
             _atmService = atmService;
             _cardRepo = cardRepo;
             _transactionRepo = transactionRepo;
             _inputValidator = inputValidator;
+            _receiptService = receiptService;
         }
 
         [HttpPost("login")]
@@ -47,7 +50,19 @@ namespace ATM.API.Controllers
                 if (!_inputValidator.IsValidWithdrawalAmount(request.Amount))
                     return BadRequest(new { message = "Перевищено ліміт зняття за одну операцію (макс. 20 000 USD)" });
                 bool isSuccess = await _atmService.WithdrawCashAsync(request.CardId, request.Pin, request.Amount);
-                return Ok(new { message = "Гроші видано" });
+
+                var balance = await _atmService.GetBalanceAsync(request.CardId, request.Pin);
+
+                var card = await _cardRepo.GetByCardByIdAsync(request.CardId);
+
+                string receiptText = _receiptService.GenerateAtmReceipt(
+                    cardNumber: card.CardNumber,
+                    transactionType: "Withdrawal",
+                    amount: request.Amount,
+                    balance: balance);
+
+
+                return Ok(new { message = "Гроші видано", receipt = receiptText });
 
             }
             catch (Exception ex)
@@ -69,7 +84,18 @@ namespace ATM.API.Controllers
             try
             {
                 bool isSuccess = await _atmService.DepositCashAsync(request.CardId, request.Banknotes, request.Pin);
-                return Ok(new { message = "Успішне поповнення" });
+
+                var balance = await _atmService.GetBalanceAsync(request.CardId, request.Pin);
+
+                var card = await _cardRepo.GetByCardByIdAsync(request.CardId);
+
+                string receiptText = _receiptService.GenerateAtmReceipt(
+                    cardNumber: card.CardNumber,
+                    transactionType: "Deposit",
+                    amount: request.Amount,
+                    balance: balance);
+
+                return Ok(new { message = "Успішне поповнення", receipt = receiptText});
             }
             catch (Exception ex)
             {
