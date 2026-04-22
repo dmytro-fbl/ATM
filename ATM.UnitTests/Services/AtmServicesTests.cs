@@ -271,5 +271,29 @@ namespace ATM.UnitTests.Services
             Assert.Equal(0, card.FailedAttempts); 
             _cardRepoMock.Verify(r => r.UpdateAsync(It.Is<Card>(c => c.FailedAttempts == 0)), Times.Once);
         }
+
+        [Fact]
+        public async Task GetTransactionsAsync_ShouldReturnPaginatedTransactions()
+        {
+            var cardId = Guid.NewGuid();
+            var accountId = Guid.NewGuid();
+            var card = new Card { Id = cardId, AccountId = accountId };
+
+            var transactions = new List<Transaction>
+            {
+                new Transaction { Id = Guid.NewGuid(), Amount = 100, TransactionType = "Поповнення" },
+                new Transaction { Id = Guid.NewGuid(), Amount = -50, TransactionType = "Зняття" }
+            };
+
+            _cardRepoMock.Setup(r => r.GetByCardByIdAsync(cardId)).ReturnsAsync(card);
+
+            _transactionRepoMock.Setup(r => r.GetPaginatedByAccountIdAsync(accountId, 1, 10))
+                .ReturnsAsync((transactions.AsEnumerable(), 2));
+
+            var result = await _service.GetTransactionsAsync(cardId, 1, 10);
+
+            Assert.Equal(2, result.TotalCount); 
+            Assert.Equal(2, result.Items.Count()); 
+        }
     }
 }
