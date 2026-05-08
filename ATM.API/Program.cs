@@ -34,6 +34,7 @@ namespace ATM.API
             builder.Services.AddScoped<ICashWithdrawalStrategy, GreedyWithdrawalStrategy>();
             builder.Services.AddScoped<InputValidator>();
             builder.Services.AddScoped<IReceiptService, ReceiptService>();
+            builder.Services.AddScoped<ITransactionReceiptFacade, TransactionReceiptFacade>();
 
 
             // Add services to the container.
