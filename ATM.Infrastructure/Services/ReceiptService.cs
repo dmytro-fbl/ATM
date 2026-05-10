@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Globalization;
 using ATM.Domain.Interfaces.Services;
+using Microsoft.Extensions.Configuration;
 
 namespace ATM.Infrastructure.Services
 {
@@ -12,14 +13,25 @@ namespace ATM.Infrastructure.Services
     {
         private const int ReceiptWidth = 40;
 
+        private readonly string _bankName;
+        private readonly string _terminalId;
+        private readonly string _defaultCurrency;
+
+        public ReceiptService(IConfiguration configuration)
+        {
+            _bankName = configuration["Receipt:BankName"];
+            _terminalId = configuration["Receipt:TerminalId"];
+            _defaultCurrency = configuration["Receipt:Currency"];
+        }
+
         public string GenerateAtmReceipt(string cardNumber, string transactionType, decimal amount, decimal balance, string currency = "USD")
         {
             var sb = new StringBuilder();
             string date = DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss");
             string transId = GenerateTransactionId();
-            string terminalId = "ATM_IPZ-24-2";
+            string terminalId = _terminalId;
 
-            sb.AppendLine(CenterText("ZHYTOMYR RUD BANK"));
+            sb.AppendLine(CenterText(_bankName));
             sb.AppendLine(CenterText("TERMINAL RECEIPT"));
             sb.AppendLine(new string('=', ReceiptWidth));
 
@@ -32,8 +44,10 @@ namespace ATM.Infrastructure.Services
             sb.AppendLine($"OPERATION: {transactionType.ToUpper()}");
             sb.AppendLine(new string('-', ReceiptWidth));
 
-            sb.AppendLine($"AMOUNT: {FormatMoney(amount, currency)}");
-            sb.AppendLine($"AVAILABLE BALANCE: {FormatMoney(balance, currency)}");
+            var currencyToUse = string.IsNullOrWhiteSpace(currency) || currency == "USD" ? _defaultCurrency : currency;
+
+            sb.AppendLine($"AMOUNT: {FormatMoney(amount, currencyToUse)}");
+            sb.AppendLine($"AVAILABLE BALANCE: {FormatMoney(balance, currencyToUse)}");
             sb.AppendLine(new string('=', ReceiptWidth));
 
             sb.AppendLine(CenterText("THANK YOU FOR CHOOSING US!"));
