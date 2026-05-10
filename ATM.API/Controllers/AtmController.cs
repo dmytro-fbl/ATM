@@ -4,6 +4,7 @@ using ATM.Domain.Interfaces.Services;
 using ATM.Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore.Storage.Json;
+using Microsoft.Extensions.Configuration;
 
 namespace ATM.API.Controllers
 {
@@ -16,14 +17,16 @@ namespace ATM.API.Controllers
         private readonly ITransactionRepository _transactionRepo;
         private readonly InputValidator _inputValidator;
         private readonly IReceiptService _receiptService;
+        private readonly string _currency;
 
-        public AtmController(IAtmService atmService, ICardRepository cardRepo, ITransactionRepository transactionRepo, InputValidator inputValidator, IReceiptService receiptService)
+        public AtmController(IAtmService atmService, ICardRepository cardRepo, ITransactionRepository transactionRepo, InputValidator inputValidator, IReceiptService receiptService, IConfiguration configuration)
         {
             _atmService = atmService;
             _cardRepo = cardRepo;
             _transactionRepo = transactionRepo;
             _inputValidator = inputValidator;
             _receiptService = receiptService;
+            _currency = configuration["Receipt:Currency"];
         }
 
         [HttpPost("login")]
@@ -48,7 +51,7 @@ namespace ATM.API.Controllers
             try
             {
                 if (!_inputValidator.IsValidWithdrawalAmount(request.Amount))
-                    return BadRequest(new { message = "Перевищено ліміт зняття за одну операцію (макс. 20 000 USD)" });
+                    return BadRequest(new { message = $"Перевищено ліміт зняття за одну операцію (макс. 20 000 {_currency})" });
                 bool isSuccess = await _atmService.WithdrawCashAsync(request.CardId, request.Pin, request.Amount);
 
                 var balance = await _atmService.GetBalanceAsync(request.CardId, request.Pin);
@@ -59,15 +62,16 @@ namespace ATM.API.Controllers
                     cardNumber: card.CardNumber,
                     transactionType: "Withdrawal",
                     amount: request.Amount,
-                    balance: balance);
+                    balance: balance,
+                    currency: _currency);
 
 
                 return Ok(new { message = "Гроші видано", receipt = receiptText });
 
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return BadRequest(new {message = ex.Message });
+                return BadRequest(new {message = "Помилка виконання операції" });
             }
         }
 
@@ -75,7 +79,7 @@ namespace ATM.API.Controllers
         public async Task<IActionResult> Balance([FromBody] GetBalanceRequest request)
         {
             var balance = await _atmService.GetBalanceAsync(request.CardId, request.Pin);
-            return Ok(new { balance = balance, currency = "UAH"});
+            return Ok(new { balance = balance, currency = _currency});
         }
 
         [HttpPost("deposit")]
@@ -93,13 +97,14 @@ namespace ATM.API.Controllers
                     cardNumber: card.CardNumber,
                     transactionType: "Deposit",
                     amount: request.Amount,
-                    balance: balance);
+                    balance: balance,
+                    currency: _currency);
 
                 return Ok(new { message = "Успішне поповнення", receipt = receiptText});
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(new { message = "Помилка виконання операції" });
             }
         }
 
@@ -131,8 +136,5 @@ namespace ATM.API.Controllers
                return BadRequest(new {message =  ex.Message});
             }
         }
-
-
-
     }
 }

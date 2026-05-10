@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ATM.Infrastructure.Services;
+using Microsoft.Extensions.Configuration;
 
 namespace ATM.UnitTests.Services
 {
@@ -13,7 +14,18 @@ namespace ATM.UnitTests.Services
 
         public ReceiptServiceTests()
         {
-            _receiptService = new ReceiptService();
+            var inMemorySettings = new Dictionary<string, string?>
+            {
+                ["Receipt:BankName"] = "ZHYTOMYR RUD BANK",
+                ["Receipt:TerminalId"] = "ATM_IPZ-24-2",
+                ["Receipt:Currency"] = "USD"
+            };
+
+            IConfiguration configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(inMemorySettings)
+                .Build();
+
+            _receiptService = new ReceiptService(configuration);
         }
 
         [Fact]
@@ -29,7 +41,7 @@ namespace ATM.UnitTests.Services
         [Fact]
         public void GenerateAtmReceipt_ShouldHandleShortCardNumber()
         {
-            string shortNumber = "123"; 
+            string shortNumber = "123";
 
             var receipt = _receiptService.GenerateAtmReceipt(shortNumber, "Зняття", 100, 100);
             Assert.Contains("**** **** **** ****", receipt); // Має повернути стандартну маску
