@@ -27,11 +27,10 @@
 		</div>
 	</div>
 </div>
-
 @section Scripts {
     <script>
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
-            e.preventDefault(); 
+            e.preventDefault();
 
             const cardInput = document.getElementById('cardNumber').value;
             const pinInput = document.getElementById('pin').value;
@@ -46,24 +45,43 @@
                     body: JSON.stringify({ cardNumber: cardInput, pin: pinInput })
                 });
 
+                // Якщо статус відповіді помилковий (400, 401, 500 тощо)
+                if (!response.ok) {
+                    let errorMessage = "Помилка авторизації";
+                    try {
+                        const errData = await response.json();
+                        // Беремо повідомлення з message, або з detail/title (стандартні поля ASP.NET)
+                        errorMessage = errData.message || errData.detail || errData.title || errorMessage;
+                    } catch {
+                        // Якщо сервер повернув звичайний текст, а не JSON
+                        const errText = await response.text();
+                        errorMessage = errText || errorMessage;
+                    }
+
+                    errorBox.textContent = errorMessage;
+                    errorBox.classList.remove('d-none');
+                    return; // Зупиняємо виконання
+                }
+
+                // Якщо статус 200 OK
                 const data = await response.json();
 
-                if(response.ok && data.isAuthentificated){
+                if (data.isAuthentificated) {
                     sessionStorage.setItem('atm_cardId', data.cardId);
                     sessionStorage.setItem('atm_cardNumber', cardInput);
                     sessionStorage.setItem('atm_pin', pinInput);
 
-                    if(data.isAdmin) {
+                    if (data.isAdmin) {
                         window.location.href = '/Admin/Dashboard';
-                        
-                    }else {
-                            window.location.href = '/Home/Menu';
+                    } else {
+                        window.location.href = '/Home/Menu';
                     }
-                }else{                
+                } else {
                     errorBox.textContent = data.message || "Помилка авторизації";
                     errorBox.classList.remove('d-none');
                 }
             } catch (error) {
+                // Цей блок тепер спрацює лише якщо реально немає інтернету або сервер "впав"
                 errorBox.textContent = "Помилка з'єднання з сервером";
                 errorBox.classList.remove('d-none');
             }

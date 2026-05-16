@@ -29,17 +29,18 @@ namespace ATM.API.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            var card = await _cardRepo.GetByCardByNumberAsync(request.CardNumber);
+            try
+            {
+                var result = await _atmService.AuthenticateAsync(request.CardNumber, request.Pin);
 
-            if (card == null) return Unauthorized(new { message = "Карту не знайдено" });
-            bool isSuccess = await _atmService.AuthenticateAsync(request.CardNumber, request.Pin);
-
-            if (isSuccess)
-                return Ok(new {message = "Успішний вхід", isAuthentificated = true,
-                    cardId = card.Id, isAdmin = card.IsAdmin});
-            
-            return Unauthorized(new { message = "невірний номер картки або ПІН-код" });
-            
+                return Ok(new { isAuthentificated = true, cardId = "...", isAdmin = false });
+            }
+            catch (Exception ex)
+            {
+                // ВАЖЛИВО: Перехоплюємо помилку (наприклад "Ваша карта заблокована")
+                // і повертаємо її як JSON з полем message
+                return BadRequest(new { isAuthentificated = false, message = ex.Message });
+            }
         }
 
         [HttpPost("withdraw")]
