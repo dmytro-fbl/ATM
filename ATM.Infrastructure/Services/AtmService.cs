@@ -22,7 +22,6 @@ namespace ATM.Infrastructure.Services
         private IAtmCassetteRepository _cassetteRepo;
         private IAtmOperationLogRepository _operationLogRepo;
         private readonly IPasswordHasher _passwordHasher;
-
         private readonly ICashWithdrawalStrategy _withdrawalStrategy;
 
         public AtmService(AppDbContext context, ICardRepository cardRepo, IAccountRepository accountRepo,
@@ -40,8 +39,6 @@ namespace ATM.Infrastructure.Services
             _withdrawalStrategy = withdrawalStrategy;
         }
 
-
-
         public async Task<bool> AuthenticateAsync(string cardNumber, string pin)
         {
             var card = await _cardRepo.GetByCardByNumberAsync(cardNumber);
@@ -50,7 +47,6 @@ namespace ATM.Infrastructure.Services
             {
                 await LogWarningAsync("Невірний номер карти");
                 throw new Exception("Картку з таким номером не знайдено");
-
             }
 
             if (card.IsBlocked)
@@ -58,7 +54,7 @@ namespace ATM.Infrastructure.Services
                 await LogWarningAsync($"Карта {cardNumber} - заблокована");
                 throw new Exception("Ваша карта заблокована");
             }
-                        
+
             if (!_passwordHasher.VerifyPassword(pin, card.PinHash))
             {
                 card.FailedAttempts++;
@@ -72,7 +68,6 @@ namespace ATM.Infrastructure.Services
                 await _cardRepo.UpdateAsync(card);
                 await LogWarningAsync($"Невірний ПІН-код, Спроба {card.FailedAttempts} з 3", card.Id);
                 throw new Exception("Невірний ПІН-код");
-                
             }
 
             if (card.FailedAttempts > 0)
@@ -82,7 +77,7 @@ namespace ATM.Infrastructure.Services
             }
 
             await LogInfoAsync("Спроба входу", card.Id);
-            
+
             return true;
         }
 
@@ -95,11 +90,8 @@ namespace ATM.Infrastructure.Services
                 var card = await GetCardAsync(cardId);
                 var account = await GetAccountAsync(card.AccountId);
 
-                if (!_passwordHasher.VerifyPassword(pin, card.PinHash))
-                {
-                    await LogWarningAsync("невірний ПІН-код карти при ствробі зняття", cardId);
-                    throw new Exception("невірний ПІН-код");
-                }
+                await ValidateCardAccessAsync(card, pin, cardId);
+
                 decimal totalDepositAmount = 0;
                 foreach (var note in banknotes)
                 {
@@ -169,11 +161,7 @@ namespace ATM.Infrastructure.Services
                 var card = await GetCardAsync(cardId);
                 var account = await GetAccountAsync(card.AccountId);
 
-                if (!_passwordHasher.VerifyPassword(pin, card.PinHash))
-                {
-                    await LogWarningAsync("невірний ПІН-код карти при спробі зняття", cardId);
-                    throw new Exception("невірний ПІН-код");
-                }
+                await ValidateCardAccessAsync(card, pin, cardId);
 
                 await LogInfoAsync("Огляд рахунку", cardId);
                 return account.Balance;
@@ -192,18 +180,10 @@ namespace ATM.Infrastructure.Services
             try
             {
                 var card = await GetCardAsync(cardId);
-                if (card.IsBlocked)
-                {
-                    await LogWarningAsync("Картку заблоковано після 3 невдалих спроб", card.Id);
-                    throw new Exception("Картку заблоковано через перевищення спроб введення ПІН-коду.");
-                }
-                var account = await GetAccountAsync(card.AccountId);
 
-                if (!_passwordHasher.VerifyPassword(pin, card.PinHash))
-                {
-                    await LogWarningAsync("невірний ПІН-код карти при спробі зняття", cardId);
-                    throw new Exception("невірний ПІН-код");
-                }
+                await ValidateCardAccessAsync(card, pin, cardId);
+
+                var account = await GetAccountAsync(card.AccountId);
 
                 if (account.Balance < amount)
                 {
@@ -241,7 +221,8 @@ namespace ATM.Infrastructure.Services
                 await LogInfoAsync("Успішне зняття коштів", cardId);
                 await transaction.CommitAsync();
                 return true;
-            }catch (Exception)
+            }
+            catch (Exception)
             {
                 await LogErrorAsync("помилка операції зняття", cardId);
                 await transaction.RollbackAsync();
@@ -251,13 +232,13 @@ namespace ATM.Infrastructure.Services
 
         private async Task<Card> GetCardAsync(Guid cardId)
         {
-            
             var card = await _cardRepo.GetByCardByIdAsync(cardId);
 
             if (card == null) throw new Exception("Карту не знайдено");
 
             return card;
         }
+
         private async Task<Account> GetAccountAsync(Guid accountId)
         {
             var account = await _accountRepo.GetAccountByIdAsync(accountId);
@@ -274,6 +255,19 @@ namespace ATM.Infrastructure.Services
             return await _transactionRepo.GetPaginatedByAccountIdAsync(card.AccountId, page, pageSize);
         }
 
-        
+        private async Task ValidateCardAccessAsync(Card card, string pin, Guid cardId)
+        {
+            if (card.IsBlocked)
+            {
+                await LogWarningAsync("Картку заблоковано", card.Id);
+                throw new Exception("Картку заблоковано.");
+            }
+
+            if (!_passwordHasher.VerifyPassword(pin, card.PinHash))
+            {
+                await LogWarningAsync("Невірний ПІН-код", cardId);
+                throw new Exception("невірний ПІН-код");
+            }
+        }
     }
 }
